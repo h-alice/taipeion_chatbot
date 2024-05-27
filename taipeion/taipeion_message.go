@@ -1,6 +1,7 @@
 package taipeion
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -26,6 +27,15 @@ type Payload struct {
 	Events      []MessageEvent `json:"events"`
 }
 
-func (m *Message) String() string {
-	return fmt.Sprintf("Message{Type: %s, Id: %s, Text: %s}", m.Type, m.Id, m.Text)
+func DeserializeMessage(data []byte) (*Payload, error) {
+	var payload Payload
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
+		return nil, err
+	}
+	return &payload, nil
+}
+
+func (m Message) String() string {
+	return fmt.Sprintf("Type: %s\n, Id: %s, Text: %s", m.Type, m.Id, m.Text)
 }
