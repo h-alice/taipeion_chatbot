@@ -193,6 +193,6 @@ func main() {
 	bot := NewChatbotFromConfig(config)
 
 	// Start the chatbot
-	err = bot.Start()
+	_ = bot.Start()
 
 }
