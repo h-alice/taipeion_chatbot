@@ -6,15 +6,18 @@ import (
 )
 
 type Message struct {
-	Type string `json:"type"`
-	Id   string `json:"id"`
-	Text string `json:"text"`
+	Type string `json:"type,omitempty"`
+	Id   string `json:"id,omitempty"`
+	Text string `json:"text,omitempty"`
 }
+
+// Received message source.
 type MessageSource struct {
 	Type   string `json:"type"`
 	UserId string `json:"userId"`
 }
 
+// The message event from webhook.
 type MessageEvent struct {
 	Type      string        `json:"type"`
 	Timestamp int64         `json:"timestamp"`
@@ -22,18 +25,32 @@ type MessageEvent struct {
 	Message   Message       `json:"message"`
 }
 
-type Payload struct {
+// This is the received payload from the webhook.
+type WebhookPayload struct {
 	Destination string         `json:"destination"`
 	Events      []MessageEvent `json:"events"`
 }
 
-func DeserializeMessage(data []byte) (*Payload, error) {
-	var payload Payload
+type ChannelMessagePayload struct {
+	Ask     string  `json:"ask"`
+	Message Message `json:"message"`
+}
+
+func DeserializeWebhookMessage(data []byte) (*WebhookPayload, error) {
+	var payload WebhookPayload
 	err := json.Unmarshal(data, &payload)
 	if err != nil {
 		return nil, err
 	}
 	return &payload, nil
+}
+
+func (cpd ChannelMessagePayload) Serialize() ([]byte, error) {
+	data, err := json.Marshal(cpd)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (m Message) String() string {
