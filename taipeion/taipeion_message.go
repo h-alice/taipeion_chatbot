@@ -32,8 +32,9 @@ type WebhookPayload struct {
 }
 
 type ChannelMessagePayload struct {
-	Ask     string  `json:"ask"`
-	Message Message `json:"message"`
+	Ask       string  `json:"ask"`
+	Recipient string  `json:"recipient,omitempty"`
+	Message   Message `json:"message"`
 }
 
 func DeserializeWebhookMessage(data []byte) (*WebhookPayload, error) {

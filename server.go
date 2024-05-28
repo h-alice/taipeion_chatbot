@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,6 +84,69 @@ type TaipeionBot struct {
 }
 
 func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
+	// Craft the message
+	ch_payload := tp.ChannelMessagePayload{
+		Ask: "broadcastMessage",
+		Message: tp.Message{
+			Type: "text",
+			Text: message,
+		},
+	}
+
+	// Serialize the message
+	data, err := ch_payload.Serialize()
+	if err != nil {
+		return err
+	}
+
+	// Send the message
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
+}
+
+func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error {
+	// Craft the message
+	ch_payload := tp.ChannelMessagePayload{
+		Ask:       "sendMessage",
+		Recipient: userId,
+		Message: tp.Message{
+			Type: "text",
+			Text: message,
+		},
+	}
+
+	// Serialize the message
+	data, err := ch_payload.Serialize()
+	if err != nil {
+		return err
+	}
+
+	// Send the message
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
+
+}
+
+func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte) error {
+	req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("content-type", "application/json")
+	req.Header.Set("authorization", tpb.ChannelAccessToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Verbose logging
+	log.Println("Response Status:", resp.Status)
+	log.Panicln("Response Headers:", resp.Header)
+	body, _ := io.ReadAll(resp.Body)
+	log.Println("Response Body:", string(body))
+
 	return nil
 }
 
