@@ -11,8 +11,12 @@ import (
 	"os"
 	tp "taipeion/taipeion"
 
+	"golang.org/x/sync/semaphore"
+
 	"gopkg.in/yaml.v3"
 )
+
+type WebhookEventCallback func(InternalWebhookEvent) error
 
 // Define a struct for the response
 type Response struct {
@@ -39,6 +43,19 @@ type TaipeionBot struct {
 	ServerAddress      string
 	ServerPort         int16
 	eventQueue         chan InternalWebhookEvent
+	eventHandlers      []WebhookEventCallback
+	eventSemaphore     *semaphore.Weighted
+}
+
+func SimpleWebhookEventCallback(event InternalWebhookEvent) error {
+	// Check if incoming event is text message.
+	if event.Message.Type != "text" {
+		log.Println("[SimpleStdCallback] Received non-text message. Ignoring.")
+		return nil
+	}
+
+	log.Printf("[SimpleStdCallback] Received event: %#v\n", event)
+	return nil
 }
 
 func (tpb *TaipeionBot) EnqueueWebhookIncomingEvent(event InternalWebhookEvent) {
@@ -105,7 +122,7 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte) erro
 
 	// Verbose logging
 	log.Println("Response Status:", resp.Status)
-	log.Panicln("Response Headers:", resp.Header)
+	log.Println("Response Headers:", resp.Header)
 	body, _ := io.ReadAll(resp.Body)
 	log.Println("Response Body:", string(body))
 
@@ -136,7 +153,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		defer r.Body.Close()
 
 		// Print Header
-		log.Println("Header:", r.Header)
+		log.Println("[EventListener] Received header:", r.Header)
 
 		// Deserialize the message
 		payload, err := tp.DeserializeWebhookMessage(body)
@@ -191,18 +208,31 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 			return nil
 
 		case event := <-tpb.eventQueue:
-			// Process the event
-			// For current implementation, we just echo the message back.
-			// Print the message
-			log.Printf("Received event: %#v\n", event)
+			log.Printf("[EventProcessor] Processing event: %#v\n", event)
+			for _, handler := range tpb.eventHandlers {
+				log.Printf("[EventProcessor] Processing event with handler: %#v\n", handler)
+				go tpb.EventProcessorInternalCallbackWrapper(ctx, handler, event)
+			}
 		}
-
 	}
+}
+
+func (tpb *TaipeionBot) EventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event InternalWebhookEvent) error {
+	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore
+	err := event_handler(event)
+	tpb.eventSemaphore.Release(1) // Release the semaphore
+	return err
+}
+
+func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
+	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
 
 func (tpb *TaipeionBot) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
 
 	go tpb.EventProcessorLoop(ctx) // Start the event processor loop
 
@@ -240,6 +270,9 @@ func main() {
 
 	// Create a new chatbot instance
 	bot := NewChatbotFromConfig(config)
+
+	// Register the simple callback
+	bot.RegisterWebhookEventCallback(SimpleWebhookEventCallback)
 
 	// Start the chatbot
 	_ = bot.Start()
