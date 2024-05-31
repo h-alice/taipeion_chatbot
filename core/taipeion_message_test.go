@@ -1,4 +1,4 @@
-package taipeion
+package taipeion_core
 
 import (
 	"testing"
