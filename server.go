@@ -16,7 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type WebhookEventCallback func(InternalWebhookEvent) error
+type WebhookEventCallback func(*TaipeionBot, InternalWebhookEvent) error
 
 // Define a struct for the response
 type Response struct {
@@ -32,7 +32,7 @@ type ServerConfig struct {
 }
 
 type InternalWebhookEvent struct {
-	Destination string
+	Destination int64
 	tp.MessageEvent
 }
 
@@ -47,7 +47,7 @@ type TaipeionBot struct {
 	eventSemaphore     *semaphore.Weighted
 }
 
-func SimpleWebhookEventCallback(event InternalWebhookEvent) error {
+func SimpleWebhookEventCallback(bot *TaipeionBot, event InternalWebhookEvent) error {
 	// Check if incoming event is text message.
 	if event.Message.Type != "text" {
 		log.Println("[SimpleStdCallback] Received non-text message. Ignoring.")
@@ -56,6 +56,23 @@ func SimpleWebhookEventCallback(event InternalWebhookEvent) error {
 
 	log.Printf("[SimpleStdCallback] Received event: %#v\n", event)
 	return nil
+}
+
+func PrivateMessageCallback(bot *TaipeionBot, event InternalWebhookEvent) error {
+	// Check if incoming event is text message.
+	if event.Message.Type != "text" {
+		log.Println("[PrivateMessageCallback] Received non-text message. Ignoring.")
+		return nil
+	}
+
+	reply_message := event.Message.Text
+	receiver := event.Source.UserId
+
+	// Process the incoming message.
+	reply_message = fmt.Sprintf("Bot: %s", reply_message)
+
+	return bot.SendPrivateMessage(receiver, reply_message)
+
 }
 
 func (tpb *TaipeionBot) EnqueueWebhookIncomingEvent(event InternalWebhookEvent) {
@@ -105,14 +122,17 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error 
 }
 
 func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte) error {
+	log.Println(string(data))
+
 	req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("authorization", tpb.ChannelAccessToken)
 
+	log.Println(req.Header)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -219,7 +239,7 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 
 func (tpb *TaipeionBot) EventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event InternalWebhookEvent) error {
 	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore
-	err := event_handler(event)
+	err := event_handler(tpb, event)
 	tpb.eventSemaphore.Release(1) // Release the semaphore
 	return err
 }
@@ -273,6 +293,7 @@ func main() {
 
 	// Register the simple callback
 	bot.RegisterWebhookEventCallback(SimpleWebhookEventCallback)
+	bot.RegisterWebhookEventCallback(PrivateMessageCallback)
 
 	// Start the chatbot
 	_ = bot.Start()
