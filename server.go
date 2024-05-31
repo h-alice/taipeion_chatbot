@@ -14,11 +14,11 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-type WebhookEventCallback func(*TaipeionBot, InternalWebhookEvent) error
+type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
 
 // Define a struct for the response
-type Response struct {
-	Status string `json:"test"`
+type response struct {
+	Status string `json:"status"`
 }
 
 type ServerConfig struct {
@@ -29,7 +29,7 @@ type ServerConfig struct {
 	Port               int16  `yaml:"port"`
 }
 
-type InternalWebhookEvent struct {
+type ChatbotWebhookEvent struct {
 	Destination int64
 	tp.MessageEvent
 }
@@ -40,7 +40,7 @@ type TaipeionBot struct {
 	ChannelAccessToken string
 	ServerAddress      string
 	ServerPort         int16
-	eventQueue         chan InternalWebhookEvent
+	eventQueue         chan ChatbotWebhookEvent
 	eventHandlers      []WebhookEventCallback
 	eventSemaphore     *semaphore.Weighted
 }
@@ -48,7 +48,7 @@ type TaipeionBot struct {
 // # Simple webhook event callback.
 //
 // This callback puts the incoming message to the log (stdout).
-func SimpleWebhookEventCallback(bot *TaipeionBot, event InternalWebhookEvent) error {
+func SimpleWebhookEventCallback(bot *TaipeionBot, event ChatbotWebhookEvent) error {
 	// Check if incoming event is text message.
 	if event.Message.Type != "text" {
 		log.Println("[SimpleStdCallback] Received non-text message. Ignoring.")
@@ -62,7 +62,7 @@ func SimpleWebhookEventCallback(bot *TaipeionBot, event InternalWebhookEvent) er
 // # Private message callback.
 //
 // This callback is used to send a reply to a cer
-func PrivateMessageCallback(bot *TaipeionBot, event InternalWebhookEvent) error {
+func PrivateMessageCallback(bot *TaipeionBot, event ChatbotWebhookEvent) error {
 	// Check if incoming event is text message.
 	if event.Message.Type != "text" {
 		log.Println("[PrivateMessageCallback] Received non-text message. Ignoring.")
@@ -80,7 +80,7 @@ func PrivateMessageCallback(bot *TaipeionBot, event InternalWebhookEvent) error 
 }
 
 // # Enqueue an incoming webhook event.
-func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event InternalWebhookEvent) {
+func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 	tpb.eventQueue <- event
 }
 
@@ -168,7 +168,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		// Check header for content length.
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
 			// Ignore and send OK.
-			response := Response{Status: "no content"}
+			response := response{Status: "no content"}
 			w.WriteHeader(http.StatusAccepted)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
@@ -200,7 +200,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		// Iterate over the events.
 		for _, event := range payload.Events {
 			// Create an internal event
-			internal_event := InternalWebhookEvent{
+			internal_event := ChatbotWebhookEvent{
 				Destination:  payload.Destination,
 				MessageEvent: event,
 			}
@@ -210,7 +210,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		}
 
 		// Create the response object
-		response := Response{Status: "success"}
+		response := response{Status: "success"}
 
 		// Set the response status to OK
 		w.WriteHeader(http.StatusOK)
@@ -258,7 +258,7 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 // So there's no need to deal with the semaphore or context in the callback function.
 //
 // The function is for internal use only.
-func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event InternalWebhookEvent) error {
+func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event ChatbotWebhookEvent) error {
 	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
 	err := event_handler(tpb, event)   // Call the event handler.
 	tpb.eventSemaphore.Release(1)      // Release the semaphore if callback is done.
@@ -278,7 +278,7 @@ func (tpb *TaipeionBot) Start() error {
 
 	go tpb.EventProcessorLoop(ctx) // Start the event processor loop
 
-	tpb.eventQueue = make(chan InternalWebhookEvent, 100)
+	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
 	return tpb.webhookEventListener()
 }
 
