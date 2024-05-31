@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	tp "taipeion/taipeion"
+	tp "taipeion/core"
 
 	"golang.org/x/sync/semaphore"
 
