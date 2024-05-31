@@ -45,6 +45,9 @@ type TaipeionBot struct {
 	eventSemaphore     *semaphore.Weighted
 }
 
+// # Simple webhook event callback.
+//
+// This callback puts the incoming message to the log (stdout).
 func SimpleWebhookEventCallback(bot *TaipeionBot, event InternalWebhookEvent) error {
 	// Check if incoming event is text message.
 	if event.Message.Type != "text" {
@@ -56,6 +59,9 @@ func SimpleWebhookEventCallback(bot *TaipeionBot, event InternalWebhookEvent) er
 	return nil
 }
 
+// # Private message callback.
+//
+// This callback is used to send a reply to a cer
 func PrivateMessageCallback(bot *TaipeionBot, event InternalWebhookEvent) error {
 	// Check if incoming event is text message.
 	if event.Message.Type != "text" {
@@ -73,10 +79,14 @@ func PrivateMessageCallback(bot *TaipeionBot, event InternalWebhookEvent) error 
 
 }
 
-func (tpb *TaipeionBot) EnqueueWebhookIncomingEvent(event InternalWebhookEvent) {
+// # Enqueue an incoming webhook event.
+func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event InternalWebhookEvent) {
 	tpb.eventQueue <- event
 }
 
+// # Send a broadcast message to all users.
+//
+// This method uses the message API to send a broadcast message to all users who have subscribed to the channel.
 func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
 	// Craft the message
 	ch_payload := tp.ChannelMessagePayload{
@@ -97,6 +107,9 @@ func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
 	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
 }
 
+// # Send a private message to a user.
+//
+// This method uses the message API to send a private message to a user.
 func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error {
 	// Craft the message
 	ch_payload := tp.ChannelMessagePayload{
@@ -193,7 +206,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 			}
 
 			// Enqueue the event
-			tpb.EnqueueWebhookIncomingEvent(internal_event)
+			tpb.enqueueWebhookIncomingEvent(internal_event)
 		}
 
 		// Create the response object
@@ -218,30 +231,41 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 	return http.ListenAndServe(full_server_address, nil) // Serve until error.
 }
 
+// # The main event processor loop.
+//
+// This function is the main loop for processing incoming events.
+// It waits for incoming events and processes them using the registered event handlers.
 func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): // Check if the context is cancelled.
 			log.Println("Context cancelled. Exiting event processor loop.")
 			return nil
 
-		case event := <-tpb.eventQueue:
+		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EventProcessor] Processing event: %#v\n", event)
-			for _, handler := range tpb.eventHandlers {
+			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
 				log.Printf("[EventProcessor] Processing event with handler: %#v\n", handler)
-				go tpb.EventProcessorInternalCallbackWrapper(ctx, handler, event)
+				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
 			}
 		}
 	}
 }
 
-func (tpb *TaipeionBot) EventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event InternalWebhookEvent) error {
-	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore
-	err := event_handler(tpb, event)
-	tpb.eventSemaphore.Release(1) // Release the semaphore
+// # The wrapper for the event processor callback.
+//
+// Since we've simplified the callback to a single function, we can use this wrapper to handle the semaphore.
+// So there's no need to deal with the semaphore or context in the callback function.
+//
+// The function is for internal use only.
+func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event InternalWebhookEvent) error {
+	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
+	err := event_handler(tpb, event)   // Call the event handler.
+	tpb.eventSemaphore.Release(1)      // Release the semaphore if callback is done.
 	return err
 }
 
+// # Register a webhook event callback.
 func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
 	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
