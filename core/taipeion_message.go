@@ -20,7 +20,7 @@ type MessageSource struct {
 // The message event from webhook.
 type MessageEvent struct {
 	Type      string        `json:"type"`
-	Timestamp int64         `json:"timestamp"`
+	Timestamp int           `json:"timestamp"`
 	Source    MessageSource `json:"source"`
 	Message   Message       `json:"message"`
 }
