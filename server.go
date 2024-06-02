@@ -21,12 +21,16 @@ type response struct {
 	Status string `json:"status"`
 }
 
-type ServerConfig struct {
-	Endpoint           string `yaml:"taipeion-endpoint"`
+// Definiton of the channel struct.
+type Channel struct {
 	ChannelSecret      string `yaml:"channel-secret"`
 	ChannelAccessToken string `yaml:"channel-access-token"`
-	Address            string `yaml:"address"`
-	Port               int16  `yaml:"port"`
+}
+type ServerConfig struct {
+	Endpoint string          `yaml:"taipeion-endpoint"`
+	Channels map[int]Channel `yaml:"channels"`
+	Address  string          `yaml:"address"`
+	Port     int16           `yaml:"port"`
 }
 
 type ChatbotWebhookEvent struct {
@@ -35,14 +39,13 @@ type ChatbotWebhookEvent struct {
 }
 
 type TaipeionBot struct {
-	Endpoint           string
-	ChannelSecret      string
-	ChannelAccessToken string
-	ServerAddress      string
-	ServerPort         int16
-	eventQueue         chan ChatbotWebhookEvent
-	eventHandlers      []WebhookEventCallback
-	eventSemaphore     *semaphore.Weighted
+	Endpoint       string
+	Channels       map[int]Channel
+	ServerAddress  string
+	ServerPort     int16
+	eventQueue     chan ChatbotWebhookEvent
+	eventHandlers  []WebhookEventCallback
+	eventSemaphore *semaphore.Weighted
 }
 
 // # Enqueue an incoming webhook event.
@@ -53,7 +56,11 @@ func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 // # Send a broadcast message to all users.
 //
 // This method uses the message API to send a broadcast message to all users who have subscribed to the channel.
-func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
+//
+// Parameters:
+// - message: The message to be sent.
+// - target_channel: The channel's ID to send the message to.
+func (tpb *TaipeionBot) SendBroadcastMessage(message string, target_channel int) error {
 	// Craft the message
 	ch_payload := tp.ChannelMessagePayload{
 		Ask: "broadcastMessage",
@@ -70,13 +77,18 @@ func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
 	}
 
 	// Send the message
-	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
 }
 
 // # Send a private message to a user.
 //
 // This method uses the message API to send a private message to a user.
-func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error {
+//
+// Parameters:
+// - userId: The user's ID to send the message to.
+// - message: The message to be sent.
+// - target_channel: The channel's ID to send the message to.
+func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target_channel int) error {
 	// Craft the message
 	ch_payload := tp.ChannelMessagePayload{
 		Ask:       "sendMessage",
@@ -94,11 +106,12 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error 
 	}
 
 	// Send the message
-	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
 
 }
 
-func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte) error {
+// # Perform a POST request to the TaipeiON endpoint.
+func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, target_channel int) error {
 	log.Println(string(data))
 
 	req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
@@ -107,7 +120,7 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte) erro
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("authorization", tpb.ChannelAccessToken)
+	req.Header.Set("authorization", tpb.Channels[target_channel].ChannelAccessToken)
 
 	log.Println(req.Header)
 	client := &http.Client{}
@@ -248,16 +261,15 @@ func (tpb *TaipeionBot) Start() error {
 	return tpb.webhookEventListener()
 }
 
-func NewChatbotInstance(endpoint string, channelSecret string, channelAccessToken string, serverAddress string, serverPort int16) *TaipeionBot {
+func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16) *TaipeionBot {
 	return &TaipeionBot{
-		Endpoint:           endpoint,
-		ChannelSecret:      channelSecret,
-		ChannelAccessToken: channelAccessToken,
-		ServerAddress:      serverAddress,
-		ServerPort:         serverPort,
+		Endpoint:      endpoint,
+		Channels:      channels,
+		ServerAddress: serverAddress,
+		ServerPort:    serverPort,
 	}
 }
 
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
-	return NewChatbotInstance(config.Endpoint, config.ChannelSecret, config.ChannelAccessToken, config.Address, config.Port)
+	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port)
 }
