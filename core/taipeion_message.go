@@ -27,7 +27,7 @@ type MessageEvent struct {
 
 // This is the received payload from the webhook.
 type WebhookPayload struct {
-	Destination int64          `json:"destination"`
+	Destination int            `json:"destination"`
 	Events      []MessageEvent `json:"events"`
 }
 
