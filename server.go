@@ -34,7 +34,7 @@ type ServerConfig struct {
 }
 
 type ChatbotWebhookEvent struct {
-	Destination int64
+	Destination int
 	tp.MessageEvent
 }
 
