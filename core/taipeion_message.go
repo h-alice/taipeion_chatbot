@@ -1,4 +1,4 @@
-package taipeion
+package taipeion_core
 
 import (
 	"encoding/json"
@@ -20,14 +20,14 @@ type MessageSource struct {
 // The message event from webhook.
 type MessageEvent struct {
 	Type      string        `json:"type"`
-	Timestamp int64         `json:"timestamp"`
+	Timestamp int           `json:"timestamp"`
 	Source    MessageSource `json:"source"`
 	Message   Message       `json:"message"`
 }
 
 // This is the received payload from the webhook.
 type WebhookPayload struct {
-	Destination string         `json:"destination"`
+	Destination int            `json:"destination"`
 	Events      []MessageEvent `json:"events"`
 }
 

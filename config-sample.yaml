@@ -1,5 +1,7 @@
 taipeion-endpoint: https://tpgimtest.gov.taipei/API/MessageFeedService.ashx
-channel-secret: your-channel-secret
-chnnel-access-token: your-channel-access-token
+channels:
+  1: # Your channel ID.
+    channel-secret: your-channel-secret
+    channel-access-token: your-channel-access-token
 address: 0.0.0.0
 port: 443

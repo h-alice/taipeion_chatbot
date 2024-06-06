@@ -8,61 +8,59 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	tp "taipeion/taipeion"
+
+	tp "taipeion/core"
 
 	"golang.org/x/sync/semaphore"
-
-	"gopkg.in/yaml.v3"
 )
 
-type WebhookEventCallback func(InternalWebhookEvent) error
+type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
 
 // Define a struct for the response
-type Response struct {
-	Status string `json:"test"`
+type response struct {
+	Status string `json:"status"`
 }
 
-type ServerConfig struct {
-	Endpoint           string `yaml:"taipeion-endpoint"`
+// Definiton of the channel struct.
+type Channel struct {
 	ChannelSecret      string `yaml:"channel-secret"`
 	ChannelAccessToken string `yaml:"channel-access-token"`
-	Address            string `yaml:"address"`
-	Port               int16  `yaml:"port"`
+}
+type ServerConfig struct {
+	Endpoint string          `yaml:"taipeion-endpoint"`
+	Channels map[int]Channel `yaml:"channels"`
+	Address  string          `yaml:"address"`
+	Port     int16           `yaml:"port"`
 }
 
-type InternalWebhookEvent struct {
-	Destination string
+type ChatbotWebhookEvent struct {
+	Destination int
 	tp.MessageEvent
 }
 
 type TaipeionBot struct {
-	Endpoint           string
-	ChannelSecret      string
-	ChannelAccessToken string
-	ServerAddress      string
-	ServerPort         int16
-	eventQueue         chan InternalWebhookEvent
-	eventHandlers      []WebhookEventCallback
-	eventSemaphore     *semaphore.Weighted
+	Endpoint       string
+	Channels       map[int]Channel
+	ServerAddress  string
+	ServerPort     int16
+	eventQueue     chan ChatbotWebhookEvent
+	eventHandlers  []WebhookEventCallback
+	eventSemaphore *semaphore.Weighted
 }
 
-func SimpleWebhookEventCallback(event InternalWebhookEvent) error {
-	// Check if incoming event is text message.
-	if event.Message.Type != "text" {
-		log.Println("[SimpleStdCallback] Received non-text message. Ignoring.")
-		return nil
-	}
-
-	log.Printf("[SimpleStdCallback] Received event: %#v\n", event)
-	return nil
-}
-
-func (tpb *TaipeionBot) EnqueueWebhookIncomingEvent(event InternalWebhookEvent) {
+// # Enqueue an incoming webhook event.
+func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 	tpb.eventQueue <- event
 }
 
-func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
+// # Send a broadcast message to all users.
+//
+// This method uses the message API to send a broadcast message to all users who have subscribed to the channel.
+//
+// Parameters:
+// - message: The message to be sent.
+// - target_channel: The channel's ID to send the message to.
+func (tpb *TaipeionBot) SendBroadcastMessage(message string, target_channel int) error {
 	// Craft the message
 	ch_payload := tp.ChannelMessagePayload{
 		Ask: "broadcastMessage",
@@ -79,10 +77,18 @@ func (tpb *TaipeionBot) SendBroadcastMessage(message string) error {
 	}
 
 	// Send the message
-	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
 }
 
-func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error {
+// # Send a private message to a user.
+//
+// This method uses the message API to send a private message to a user.
+//
+// Parameters:
+// - userId: The user's ID to send the message to.
+// - message: The message to be sent.
+// - target_channel: The channel's ID to send the message to.
+func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target_channel int) error {
 	// Craft the message
 	ch_payload := tp.ChannelMessagePayload{
 		Ask:       "sendMessage",
@@ -100,19 +106,23 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string) error 
 	}
 
 	// Send the message
-	return tpb.DoEndpointPostRequest(tpb.Endpoint, data)
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
 
 }
 
-func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte) error {
+// # Perform a POST request to the TaipeiON endpoint.
+func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, target_channel int) error {
+	log.Println(string(data))
+
 	req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("authorization", tpb.ChannelAccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("authorization", tpb.Channels[target_channel].ChannelAccessToken)
 
+	log.Println(req.Header)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -137,7 +147,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		// Check header for content length.
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
 			// Ignore and send OK.
-			response := Response{Status: "no content"}
+			response := response{Status: "no content"}
 			w.WriteHeader(http.StatusAccepted)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
@@ -169,17 +179,17 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		// Iterate over the events.
 		for _, event := range payload.Events {
 			// Create an internal event
-			internal_event := InternalWebhookEvent{
+			internal_event := ChatbotWebhookEvent{
 				Destination:  payload.Destination,
 				MessageEvent: event,
 			}
 
 			// Enqueue the event
-			tpb.EnqueueWebhookIncomingEvent(internal_event)
+			tpb.enqueueWebhookIncomingEvent(internal_event)
 		}
 
 		// Create the response object
-		response := Response{Status: "success"}
+		response := response{Status: "success"}
 
 		// Set the response status to OK
 		w.WriteHeader(http.StatusOK)
@@ -200,30 +210,41 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 	return http.ListenAndServe(full_server_address, nil) // Serve until error.
 }
 
+// # The main event processor loop.
+//
+// This function is the main loop for processing incoming events.
+// It waits for incoming events and processes them using the registered event handlers.
 func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): // Check if the context is cancelled.
 			log.Println("Context cancelled. Exiting event processor loop.")
 			return nil
 
-		case event := <-tpb.eventQueue:
+		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EventProcessor] Processing event: %#v\n", event)
-			for _, handler := range tpb.eventHandlers {
+			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
 				log.Printf("[EventProcessor] Processing event with handler: %#v\n", handler)
-				go tpb.EventProcessorInternalCallbackWrapper(ctx, handler, event)
+				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
 			}
 		}
 	}
 }
 
-func (tpb *TaipeionBot) EventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event InternalWebhookEvent) error {
-	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore
-	err := event_handler(event)
-	tpb.eventSemaphore.Release(1) // Release the semaphore
+// # The wrapper for the event processor callback.
+//
+// Since we've simplified the callback to a single function, we can use this wrapper to handle the semaphore.
+// So there's no need to deal with the semaphore or context in the callback function.
+//
+// The function is for internal use only.
+func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event ChatbotWebhookEvent) error {
+	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
+	err := event_handler(tpb, event)   // Call the event handler.
+	tpb.eventSemaphore.Release(1)      // Release the semaphore if callback is done.
 	return err
 }
 
+// # Register a webhook event callback.
 func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
 	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
@@ -236,45 +257,19 @@ func (tpb *TaipeionBot) Start() error {
 
 	go tpb.EventProcessorLoop(ctx) // Start the event processor loop
 
-	tpb.eventQueue = make(chan InternalWebhookEvent, 100)
+	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
 	return tpb.webhookEventListener()
 }
 
-func NewChatbotInstance(endpoint string, channelSecret string, channelAccessToken string, serverAddress string, serverPort int16) *TaipeionBot {
+func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16) *TaipeionBot {
 	return &TaipeionBot{
-		Endpoint:           endpoint,
-		ChannelSecret:      channelSecret,
-		ChannelAccessToken: channelAccessToken,
-		ServerAddress:      serverAddress,
-		ServerPort:         serverPort,
+		Endpoint:      endpoint,
+		Channels:      channels,
+		ServerAddress: serverAddress,
+		ServerPort:    serverPort,
 	}
 }
 
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
-	return NewChatbotInstance(config.Endpoint, config.ChannelSecret, config.ChannelAccessToken, config.Address, config.Port)
-}
-
-func main() {
-	// Read the server configuration from file.
-	configFile, err := os.ReadFile("config.yaml")
-	if err != nil {
-		log.Fatal("Error reading config file:", err)
-	}
-
-	// Parse the configuration
-	var config ServerConfig
-	err = yaml.Unmarshal(configFile, &config)
-	if err != nil {
-		log.Fatal("Error parsing config file:", err)
-	}
-
-	// Create a new chatbot instance
-	bot := NewChatbotFromConfig(config)
-
-	// Register the simple callback
-	bot.RegisterWebhookEventCallback(SimpleWebhookEventCallback)
-
-	// Start the chatbot
-	_ = bot.Start()
-
+	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port)
 }
