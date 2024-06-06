@@ -63,12 +63,13 @@ func PrivateMessageCallback(bot *TaipeionBot, event ChatbotWebhookEvent) error {
 		return nil
 	}
 
+	chan_id := event.Destination
 	reply_message := event.Message.Text
 	receiver := event.Source.UserId
 
 	// Process the incoming message.
-	reply_message = fmt.Sprintf("Bot: %s", reply_message)
+	reply_message = fmt.Sprintf("ChannelId: %d\nEcho: %s", chan_id, reply_message)
 
-	return bot.SendPrivateMessage(receiver, reply_message)
+	return bot.SendPrivateMessage(receiver, reply_message, chan_id)
 
 }
