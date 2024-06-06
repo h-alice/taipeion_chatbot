@@ -131,10 +131,10 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, targ
 	defer resp.Body.Close()
 
 	// Verbose logging
-	log.Println("Response Status:", resp.Status)
-	log.Println("Response Headers:", resp.Header)
+	log.Println("[ReqSender] Response Status:", resp.Status)
+	log.Println("[ReqSender] Response Headers:", resp.Header)
 	body, _ := io.ReadAll(resp.Body)
-	log.Println("Response Body:", string(body))
+	log.Println("[ReqSender] Response Body:", string(body))
 
 	return nil
 }
@@ -157,21 +157,21 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		// Read the request body
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Unable to read request body", http.StatusBadRequest)
+			http.Error(w, "[EvHandler] Error: Unable to read request body", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
 
 		// Print Header
-		log.Println("[EventListener] Received header:", r.Header)
+		log.Println("[EvHandler] Received header:", r.Header)
 
 		// Deserialize the message
 		payload, err := tp.DeserializeWebhookMessage(body)
 
 		if err != nil {
-			log.Println("Error deserializing message:", err)
+			log.Println("[EvHandler] Error: Unable to deserializing message:", err)
 			// Fallback to printing the raw body
-			log.Println("Received payload:", string(body))
+			log.Println("[EvHandler] Received payload:", string(body))
 			http.Error(w, "Malformed payload.", http.StatusBadRequest)
 			return
 		}
@@ -205,7 +205,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 
 	// Start the server.
 	full_server_address := fmt.Sprintf("%s:%d", tpb.ServerAddress, tpb.ServerPort)
-	log.Println("[EventListener] Starting server at ", full_server_address)
+	log.Println("[EvListener] Starting server at ", full_server_address)
 
 	return http.ListenAndServe(full_server_address, nil) // Serve until error.
 }
@@ -218,13 +218,13 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done(): // Check if the context is cancelled.
-			log.Println("Context cancelled. Exiting event processor loop.")
+			log.Println("[EvLoop] Context cancelled. Exiting event processor loop.")
 			return nil
 
 		case event := <-tpb.eventQueue: // Wait for incoming events.
-			log.Printf("[EventProcessor] Processing event: %#v\n", event)
+			log.Printf("[EvProcessor] Processing event: %#v\n", event)
 			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EventProcessor] Processing event with handler: %#v\n", handler)
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", handler)
 				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
 			}
 		}
