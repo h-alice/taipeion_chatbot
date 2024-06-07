@@ -139,10 +139,9 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, targ
 	return nil
 }
 
-func (tpb *TaipeionBot) webhookEventListener() error {
+func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter, r *http.Request) {
 
-	// We embed the handler function inside the function to access the bot instance.
-	webhookIncomeRequestHandler := func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		// Check header for content length.
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
@@ -162,7 +161,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		}
 		defer r.Body.Close()
 
-		// Print Header
+		// DEBUG: Print Header
 		log.Println("[EvHandler] Received header:", r.Header)
 
 		// Deserialize the message
@@ -170,7 +169,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 
 		if err != nil {
 			log.Println("[EvHandler] Error: Unable to deserializing message:", err)
-			// Fallback to printing the raw body
+			// DEBUG: Fallback to printing the raw body
 			log.Println("[EvHandler] Received payload:", string(body))
 			http.Error(w, "Malformed payload.", http.StatusBadRequest)
 			return
@@ -187,21 +186,12 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 			// Enqueue the event
 			tpb.enqueueWebhookIncomingEvent(internal_event)
 		}
-
-		// Create the response object
-		response := response{Status: "success"}
-
-		// Set the response status to OK
-		w.WriteHeader(http.StatusOK)
-
-		// Set the response header to indicate JSON content
-		w.Header().Set("Content-Type", "application/json")
-
-		// Encode the response object to JSON and send it
-		json.NewEncoder(w).Encode(response)
 	}
+}
 
-	http.HandleFunc("/", webhookIncomeRequestHandler) // Set the default handler.
+func (tpb *TaipeionBot) webhookEventListener() error {
+
+	http.HandleFunc("/", tpb.incomeRequestHandlerFactory()) // Set the default handler.
 
 	// Start the server.
 	full_server_address := fmt.Sprintf("%s:%d", tpb.ServerAddress, tpb.ServerPort)
