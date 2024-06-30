@@ -27,10 +27,13 @@ type Channel struct {
 	ChannelAccessToken string `yaml:"channel-access-token"`
 }
 type ServerConfig struct {
-	Endpoint string          `yaml:"taipeion-endpoint"`
-	Channels map[int]Channel `yaml:"channels"`
-	Address  string          `yaml:"address"`
-	Port     int16           `yaml:"port"`
+	Endpoint               string          `yaml:"taipeion-endpoint"`
+	Channels               map[int]Channel `yaml:"channels"`
+	Address                string          `yaml:"address"`
+	Port                   int16           `yaml:"port"`
+	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
+	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
+	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
 }
 
 type ChatbotWebhookEvent struct {
@@ -46,6 +49,7 @@ type TaipeionBot struct {
 	eventQueue     chan ChatbotWebhookEvent
 	eventHandlers  []WebhookEventCallback
 	eventSemaphore *semaphore.Weighted
+	maxConcurrent  int
 }
 
 // # Enqueue an incoming webhook event.
@@ -239,16 +243,74 @@ func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallba
 	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
 
-func (tpb *TaipeionBot) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
+// Main loop.
+func (tpb *TaipeionBot) mainLoop(ctx context.Context) error {
+
+	ctx_child, cancel := context.WithCancel(ctx)
+	subroutine_err := make(chan error)
 	defer cancel()
 
-	tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
+	tpb.eventSemaphore = semaphore.NewWeighted(int64(tpb.maxConcurrent))
 
-	go tpb.EventProcessorLoop(ctx) // Start the event processor loop
+	select {
+	case <-ctx.Done(): // Check if the context is cancelled.
+		log.Println("[Daemon] Received cancelling signal, terminating all subroutines.")
+		return nil
 
-	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
-	return tpb.webhookEventListener()
+	default:
+		log.Println("[Daemon] Starting all child coroutines.")
+
+		go func(ctx context.Context, err_chan chan error) {
+			select {
+			case <-ctx.Done(): // Check if the context is cancelled.
+				log.Println("[EvListener] Received cancel signal.")
+				return
+			default:
+				err := tpb.EventProcessorLoop(ctx_child) // Start the event processor loop.
+				if err != nil {                          // The subroutine has returned an error.
+					err_chan <- err
+				}
+			}
+
+		}(ctx_child, subroutine_err)
+
+		go func(ctx context.Context, err_chan chan error) {
+
+			select {
+			case <-ctx.Done(): // Check if the context is cancelled.
+				log.Println("[EvListener] Received cancel signal.")
+				return
+
+			default:
+				err := tpb.webhookEventListener()
+				if err != nil { // The subroutine has returned an error.
+					err_chan <- err
+				}
+			}
+		}(ctx_child, subroutine_err)
+	}
+
+	// Wait for the first error to occur.
+	err := <-subroutine_err
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (tpb *TaipeionBot) Start() error {
+
+	for {
+		tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
+		ctx, cancel := context.WithCancel(context.Background())
+
+		err := tpb.mainLoop(ctx)
+		if err != nil {
+			log.Println("[Daemon] Main loop returned an error:", err)
+			cancel()
+		}
+	}
 }
 
 func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16) *TaipeionBot {
@@ -257,6 +319,7 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 		Channels:      channels,
 		ServerAddress: serverAddress,
 		ServerPort:    serverPort,
+		maxConcurrent: 1, // TODO: Adjust the semaphore weight.
 	}
 }
 
