@@ -27,10 +27,13 @@ type Channel struct {
 	ChannelAccessToken string `yaml:"channel-access-token"`
 }
 type ServerConfig struct {
-	Endpoint string          `yaml:"taipeion-endpoint"`
-	Channels map[int]Channel `yaml:"channels"`
-	Address  string          `yaml:"address"`
-	Port     int16           `yaml:"port"`
+	Endpoint               string          `yaml:"taipeion-endpoint"`
+	Channels               map[int]Channel `yaml:"channels"`
+	Address                string          `yaml:"address"`
+	Port                   int16           `yaml:"port"`
+	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
+	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
+	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
 }
 
 type ChatbotWebhookEvent struct {
@@ -46,6 +49,7 @@ type TaipeionBot struct {
 	eventQueue     chan ChatbotWebhookEvent
 	eventHandlers  []WebhookEventCallback
 	eventSemaphore *semaphore.Weighted
+	maxConcurrent  int
 }
 
 // # Enqueue an incoming webhook event.
@@ -131,18 +135,17 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, targ
 	defer resp.Body.Close()
 
 	// Verbose logging
-	log.Println("Response Status:", resp.Status)
-	log.Println("Response Headers:", resp.Header)
+	log.Println("[ReqSender] Response Status:", resp.Status)
+	log.Println("[ReqSender] Response Headers:", resp.Header)
 	body, _ := io.ReadAll(resp.Body)
-	log.Println("Response Body:", string(body))
+	log.Println("[ReqSender] Response Body:", string(body))
 
 	return nil
 }
 
-func (tpb *TaipeionBot) webhookEventListener() error {
+func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter, r *http.Request) {
 
-	// We embed the handler function inside the function to access the bot instance.
-	webhookIncomeRequestHandler := func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		// Check header for content length.
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
@@ -157,21 +160,21 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 		// Read the request body
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Unable to read request body", http.StatusBadRequest)
+			http.Error(w, "[EvHandler] Error: Unable to read request body", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
 
-		// Print Header
-		log.Println("[EventListener] Received header:", r.Header)
+		// DEBUG: Print Header
+		log.Println("[EvHandler] Received header:", r.Header)
 
 		// Deserialize the message
 		payload, err := tp.DeserializeWebhookMessage(body)
 
 		if err != nil {
-			log.Println("Error deserializing message:", err)
-			// Fallback to printing the raw body
-			log.Println("Received payload:", string(body))
+			log.Println("[EvHandler] Error: Unable to deserializing message:", err)
+			// DEBUG: Fallback to printing the raw body
+			log.Println("[EvHandler] Received payload:", string(body))
 			http.Error(w, "Malformed payload.", http.StatusBadRequest)
 			return
 		}
@@ -187,25 +190,16 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 			// Enqueue the event
 			tpb.enqueueWebhookIncomingEvent(internal_event)
 		}
-
-		// Create the response object
-		response := response{Status: "success"}
-
-		// Set the response status to OK
-		w.WriteHeader(http.StatusOK)
-
-		// Set the response header to indicate JSON content
-		w.Header().Set("Content-Type", "application/json")
-
-		// Encode the response object to JSON and send it
-		json.NewEncoder(w).Encode(response)
 	}
+}
 
-	http.HandleFunc("/", webhookIncomeRequestHandler) // Set the default handler.
+func (tpb *TaipeionBot) webhookEventListener() error {
+
+	http.HandleFunc("/", tpb.incomeRequestHandlerFactory()) // Set the default handler.
 
 	// Start the server.
 	full_server_address := fmt.Sprintf("%s:%d", tpb.ServerAddress, tpb.ServerPort)
-	log.Println("[EventListener] Starting server at ", full_server_address)
+	log.Println("[EvListener] Starting server at ", full_server_address)
 
 	return http.ListenAndServe(full_server_address, nil) // Serve until error.
 }
@@ -218,13 +212,13 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done(): // Check if the context is cancelled.
-			log.Println("Context cancelled. Exiting event processor loop.")
+			log.Println("[EvLoop] Context cancelled. Exiting event processor loop.")
 			return nil
 
 		case event := <-tpb.eventQueue: // Wait for incoming events.
-			log.Printf("[EventProcessor] Processing event: %#v\n", event)
+			log.Printf("[EvProcessor] Processing event: %#v\n", event)
 			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EventProcessor] Processing event with handler: %#v\n", handler)
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", handler)
 				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
 			}
 		}
@@ -249,16 +243,74 @@ func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallba
 	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
 
-func (tpb *TaipeionBot) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
+// Main loop.
+func (tpb *TaipeionBot) mainLoop(ctx context.Context) error {
+
+	ctx_child, cancel := context.WithCancel(ctx)
+	subroutine_err := make(chan error)
 	defer cancel()
 
-	tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
+	tpb.eventSemaphore = semaphore.NewWeighted(int64(tpb.maxConcurrent))
 
-	go tpb.EventProcessorLoop(ctx) // Start the event processor loop
+	select {
+	case <-ctx.Done(): // Check if the context is cancelled.
+		log.Println("[Daemon] Received cancelling signal, terminating all subroutines.")
+		return nil
 
-	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
-	return tpb.webhookEventListener()
+	default:
+		log.Println("[Daemon] Starting all child coroutines.")
+
+		go func(ctx context.Context, err_chan chan error) {
+			select {
+			case <-ctx.Done(): // Check if the context is cancelled.
+				log.Println("[EvListener] Received cancel signal.")
+				return
+			default:
+				err := tpb.EventProcessorLoop(ctx_child) // Start the event processor loop.
+				if err != nil {                          // The subroutine has returned an error.
+					err_chan <- err
+				}
+			}
+
+		}(ctx_child, subroutine_err)
+
+		go func(ctx context.Context, err_chan chan error) {
+
+			select {
+			case <-ctx.Done(): // Check if the context is cancelled.
+				log.Println("[EvListener] Received cancel signal.")
+				return
+
+			default:
+				err := tpb.webhookEventListener()
+				if err != nil { // The subroutine has returned an error.
+					err_chan <- err
+				}
+			}
+		}(ctx_child, subroutine_err)
+	}
+
+	// Wait for the first error to occur.
+	err := <-subroutine_err
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (tpb *TaipeionBot) Start() error {
+
+	for {
+		tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
+		ctx, cancel := context.WithCancel(context.Background())
+
+		err := tpb.mainLoop(ctx)
+		if err != nil {
+			log.Println("[Daemon] Main loop returned an error:", err)
+			cancel()
+		}
+	}
 }
 
 func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16) *TaipeionBot {
@@ -267,6 +319,7 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 		Channels:      channels,
 		ServerAddress: serverAddress,
 		ServerPort:    serverPort,
+		maxConcurrent: 1, // TODO: Adjust the semaphore weight.
 	}
 }
 
