@@ -209,6 +209,7 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 // This function is the main loop for processing incoming events.
 // It waits for incoming events and processes them using the registered event handlers.
 func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
+	log.Println("[EvLoop] Starting event processor loop.")
 	for {
 		select {
 		case <-ctx.Done(): // Check if the context is cancelled.
@@ -288,19 +289,19 @@ func (tpb *TaipeionBot) mainLoop(ctx context.Context) error {
 				}
 			}
 		}(ctx_child, subroutine_err)
-	}
 
-	// Wait for the first error to occur.
-	err := <-subroutine_err
-	if err != nil {
-		return err
-	} else {
-		return nil
-	}
+			// Wait for the first error to occur.
+		err := <-subroutine_err
+			if err != nil {
+				return err
+			}
+		}
+	return nil
 }
 
 func (tpb *TaipeionBot) Start() error {
 
+	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
 	for {
 		tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
 		ctx, cancel := context.WithCancel(context.Background())
