@@ -57,7 +57,7 @@ func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 	tpb.eventQueue <- event
 }
 
-// # Send a broadcast message to all users.
+// # Broadcast message sender
 //
 // This method uses the message API to send a broadcast message to all users who have subscribed to the channel.
 //
@@ -84,7 +84,7 @@ func (tpb *TaipeionBot) SendBroadcastMessage(message string, target_channel int)
 	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
 }
 
-// # Send a private message to a user.
+// # Private message sender
 //
 // This method uses the message API to send a private message to a user.
 //
@@ -114,7 +114,9 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target
 
 }
 
-// # Perform a POST request to the TaipeiON endpoint.
+// # POST Request Sender
+//
+// Perform a POST request to the TaipeiON endpoint
 func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, target_channel int) error {
 	log.Println(string(data))
 
@@ -143,6 +145,9 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, targ
 	return nil
 }
 
+// # Income Request Handler Factory
+//
+// This function creates a handler for incoming requests.
 func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter, r *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -204,11 +209,12 @@ func (tpb *TaipeionBot) webhookEventListener() error {
 	return http.ListenAndServe(full_server_address, nil) // Serve until error.
 }
 
-// # The main event processor loop.
+// # The Main Event Processor Loop
 //
 // This function is the main loop for processing incoming events.
 // It waits for incoming events and processes them using the registered event handlers.
 func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
+	log.Println("[EvLoop] Starting event processor loop.")
 	for {
 		select {
 		case <-ctx.Done(): // Check if the context is cancelled.
@@ -225,7 +231,7 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 	}
 }
 
-// # The wrapper for the event processor callback.
+// # Event Processor Callback Wrapper
 //
 // Since we've simplified the callback to a single function, we can use this wrapper to handle the semaphore.
 // So there's no need to deal with the semaphore or context in the callback function.
@@ -238,78 +244,101 @@ func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Contex
 	return err
 }
 
-// # Register a webhook event callback.
+// # Webhook Event Registration
+//
+// Register a webhook event callback.
+// All registered callbacks will be called when an event is received.
 func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
 	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
 
-// Main loop.
+// # Main loop
+//
+// The main loop of the chatbot.
 func (tpb *TaipeionBot) mainLoop(ctx context.Context) error {
 
+	// Create a child context.
 	ctx_child, cancel := context.WithCancel(ctx)
-	subroutine_err := make(chan error)
-	defer cancel()
+	defer cancel() // All child coroutines will be cancelled upon main loop termination.
 
+	// Create a channel for errors.
+	subroutine_err := make(chan error)
+
+	// Create a semaphore for concurrency control.
 	tpb.eventSemaphore = semaphore.NewWeighted(int64(tpb.maxConcurrent))
 
+	// Start all child coroutines.
+	log.Println("[Daemon] Starting all child coroutines.")
+
+	// Start the event processor loop.
+	go func(ctx context.Context, err_chan chan error) {
+		select {
+		case <-ctx.Done(): // Check if the context is cancelled.
+			log.Println("[EvListener] Received cancel signal.")
+			return
+		default:
+			err := tpb.EventProcessorLoop(ctx_child) // Start the event processor loop.
+			if err != nil {                          // The subroutine has returned an error.
+				err_chan <- err
+			}
+		}
+
+	}(ctx_child, subroutine_err)
+
+	// Start the webhook event listener.
+	go func(ctx context.Context, err_chan chan error) {
+
+		select {
+		case <-ctx.Done(): // Check if the context is cancelled.
+			log.Println("[EvListener] Received cancel signal.")
+			return
+
+		default:
+			err := tpb.webhookEventListener()
+			if err != nil { // The subroutine has returned an error.
+				err_chan <- err
+			}
+		}
+	}(ctx_child, subroutine_err)
+
+	// Wait for signals.
 	select {
+
 	case <-ctx.Done(): // Check if the context is cancelled.
 		log.Println("[Daemon] Received cancelling signal, terminating all subroutines.")
 		return nil
 
 	default:
-		log.Println("[Daemon] Starting all child coroutines.")
-
-		go func(ctx context.Context, err_chan chan error) {
-			select {
-			case <-ctx.Done(): // Check if the context is cancelled.
-				log.Println("[EvListener] Received cancel signal.")
-				return
-			default:
-				err := tpb.EventProcessorLoop(ctx_child) // Start the event processor loop.
-				if err != nil {                          // The subroutine has returned an error.
-					err_chan <- err
-				}
-			}
-
-		}(ctx_child, subroutine_err)
-
-		go func(ctx context.Context, err_chan chan error) {
-
-			select {
-			case <-ctx.Done(): // Check if the context is cancelled.
-				log.Println("[EvListener] Received cancel signal.")
-				return
-
-			default:
-				err := tpb.webhookEventListener()
-				if err != nil { // The subroutine has returned an error.
-					err_chan <- err
-				}
-			}
-		}(ctx_child, subroutine_err)
+		// Wait for the first error to occur.
+		err := <-subroutine_err
+		if err != nil {
+			return err
+		}
 	}
-
-	// Wait for the first error to occur.
-	err := <-subroutine_err
-	if err != nil {
-		return err
-	} else {
-		return nil
-	}
+	return nil
 }
 
 func (tpb *TaipeionBot) Start() error {
 
+	// Create the event queue.
+	// NOTE: Consider design a queue flushing machanism.
+	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
+
 	for {
+		// Setup concurrency semaphore.
 		tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
+
+		// Create a new context.
 		ctx, cancel := context.WithCancel(context.Background())
 
+		// Start the main loop.
 		err := tpb.mainLoop(ctx)
-		if err != nil {
+		if err != nil { // The main loop has returned an error.
 			log.Println("[Daemon] Main loop returned an error:", err)
 			cancel()
 		}
+
+		continue // Restart the main loop.
 	}
 }
 
