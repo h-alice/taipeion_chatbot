@@ -351,6 +351,7 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 		ServerAddress: serverAddress,
 		ServerPort:    serverPort,
 		maxConcurrent: 1, // TODO: Adjust the semaphore weight.
+		api_client:    api_platform.NewApiPlatformClient(apiPlatformEndpoint, apiPlatformClientId, apiPlatformClientToken),
 	}
 }
 
