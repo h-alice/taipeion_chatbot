@@ -1,4 +1,4 @@
-taipeion-endpoint: https://tpgimtest.gov.taipei/API/MessageFeedService.ashx
+taipeion-endpoint: https://apimtest.gov.taipei/tsmpc/m-taipeion/MessageFeedService
 channels:
   1: # Your channel ID.
     channel-secret: your-channel-secret

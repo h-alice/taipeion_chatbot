@@ -1,3 +1,5 @@
+github.com/h-alice/tcg-api-platform-client v0.0.4 h1:MtQlGEiFiK9EG94u66aZPXNgUF9ogNJokAtg/dQuVKk=
+github.com/h-alice/tcg-api-platform-client v0.0.4/go.mod h1:f+lEB4nUwL++C54HBSD3ZbXFMvH642o7d2IaCJlXseU=
 golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
 golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=

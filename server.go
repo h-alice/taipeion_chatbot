@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,8 @@ import (
 	"net/http"
 
 	tp "taipeion/core"
+
+	api_platform "github.com/h-alice/tcg-api-platform-client"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -50,6 +51,7 @@ type TaipeionBot struct {
 	eventHandlers  []WebhookEventCallback
 	eventSemaphore *semaphore.Weighted
 	maxConcurrent  int
+	api_client     *api_platform.ApiPlatformClient
 }
 
 // # Enqueue an incoming webhook event.
@@ -75,13 +77,13 @@ func (tpb *TaipeionBot) SendBroadcastMessage(message string, target_channel int)
 	}
 
 	// Serialize the message
-	data, err := ch_payload.Serialize()
-	if err != nil {
-		return err
-	}
+	//data, err := ch_payload.Serialize()
+	//if err != nil {
+	//	return err
+	//}
 
 	// Send the message
-	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, ch_payload, target_channel)
 }
 
 // # Send a private message to a user.
@@ -104,31 +106,33 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target
 	}
 
 	// Serialize the message
-	data, err := ch_payload.Serialize()
-	if err != nil {
-		return err
-	}
+	//data, err := ch_payload.Serialize()
+	//if err != nil {
+	//	return err
+	//}
 
 	// Send the message
-	return tpb.DoEndpointPostRequest(tpb.Endpoint, data, target_channel)
+	return tpb.DoEndpointPostRequest(tpb.Endpoint, ch_payload, target_channel)
 
 }
 
 // # Perform a POST request to the TaipeiON endpoint.
-func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data []byte, target_channel int) error {
-	log.Println(string(data))
+func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data interface{}, target_channel int) error {
 
-	req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
-	if err != nil {
-		return err
+	tpb.api_client.RequestAccessToken()
+	tpb.api_client.RequestSignBlock()
+
+	log.Println(data)
+
+	//req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"backAuth":     tpb.Channels[target_channel].ChannelAccessToken,
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("authorization", tpb.Channels[target_channel].ChannelAccessToken)
-
-	log.Println(req.Header)
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	// Perform the request
+	resp, err := tpb.api_client.SendRequest(tpb.Endpoint, "POST", headers, data, nil)
 	if err != nil {
 		return err
 	}
@@ -313,7 +317,7 @@ func (tpb *TaipeionBot) Start() error {
 	}
 }
 
-func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16) *TaipeionBot {
+func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16, apiPlatformEndpoint string, apiPlatformClientId string, apiPlatformClientToken string) *TaipeionBot {
 	return &TaipeionBot{
 		Endpoint:      endpoint,
 		Channels:      channels,
@@ -324,5 +328,5 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 }
 
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
-	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port)
+	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port, config.ApiPlatformEndpoint, config.ApiPlatformClientId, config.ApiPlatformClientToken)
 }
