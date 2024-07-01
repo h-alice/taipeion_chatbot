@@ -116,13 +116,13 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target
 
 }
 
-// # Perform a POST request to the TaipeiON endpoint.
-func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data interface{}, target_channel int) error {
+// # Perform a POST request to the TaipeiON endpoint
+func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, channelPayload tp.ChannelMessagePayload, target_channel int) error {
 
 	tpb.api_client.RequestAccessToken()
 	tpb.api_client.RequestSignBlock()
 
-	log.Println(data)
+	log.Println(channelPayload)
 
 	//req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
 
@@ -132,7 +132,7 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, data interface{},
 	}
 
 	// Perform the request
-	resp, err := tpb.api_client.SendRequest(tpb.Endpoint, "POST", headers, data, nil)
+	resp, err := tpb.api_client.SendRequest(tpb.Endpoint, "POST", headers, channelPayload, nil)
 	if err != nil {
 		return err
 	}
