@@ -1,6 +1,8 @@
 # Build artifact
 server
 
+# Dependency directory
+vendor
 
 config.yaml
 taipeion_server

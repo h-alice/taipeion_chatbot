@@ -1,10 +1,10 @@
-taipeion-endpoint: https://tpgimtest.gov.taipei/API/MessageFeedService.ashx
+taipeion-endpoint: https://apimtest.gov.taipei/tsmpc/m-taipeion/MessageFeedService # Taipeion endpoint for test server.
+api-platform-endpoint: https://apimtest.gov.taipei # API platform endpoint for test server.
+api-platform-client-id: your-api-platform-client-id # Your API platform client ID.
+api-platform-client-token: your-api-platform-client-token # Your API platform client token.
 channels:
   1: # Your channel ID.
     channel-secret: your-channel-secret
     channel-access-token: your-channel-access-token
-api-platform-endpoint: https://apimtest.gov.taipei
-api-platform-client-id: your-api-platform-client-id
-api-platform-client-token: your-api-platform-client-token
-address: 0.0.0.0
-port: 443
+address: 0.0.0.0 # Address to listen on.
+port: 443 # Port to listen on.
