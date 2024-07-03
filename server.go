@@ -157,9 +157,6 @@ func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter
 		}
 		defer r.Body.Close()
 
-		// DEBUG: Print Header
-		log.Println("[EvHandler] Received header:", r.Header)
-
 		// Deserialize the message
 		payload, err := tp.DeserializeWebhookMessage(body)
 
