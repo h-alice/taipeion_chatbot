@@ -35,6 +35,7 @@ type ServerConfig struct {
 	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
 	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
 	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
+	LlmEndpoint            string          `yaml:"llm-endpoint"`
 }
 
 type ChatbotWebhookEvent struct {
@@ -76,12 +77,6 @@ func (tpb *TaipeionBot) SendBroadcastMessage(message string, target_channel int)
 		},
 	}
 
-	// Serialize the message
-	//data, err := ch_payload.Serialize()
-	//if err != nil {
-	//	return err
-	//}
-
 	// Send the message
 	return tpb.DoEndpointPostRequest(tpb.Endpoint, ch_payload, target_channel)
 }
@@ -105,12 +100,6 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target
 		},
 	}
 
-	// Serialize the message
-	//data, err := ch_payload.Serialize()
-	//if err != nil {
-	//	return err
-	//}
-
 	// Send the message
 	return tpb.DoEndpointPostRequest(tpb.Endpoint, ch_payload, target_channel)
 
@@ -123,8 +112,6 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, channelPayload tp
 	tpb.api_client.RequestSignBlock()
 
 	log.Println(channelPayload)
-
-	//req, err := http.NewRequest("POST", tpb.Endpoint, bytes.NewBuffer(data))
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -139,10 +126,8 @@ func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, channelPayload tp
 	defer resp.Body.Close()
 
 	// Verbose logging
-	log.Println("[ReqSender] Response Status:", resp.Status)
-	log.Println("[ReqSender] Response Headers:", resp.Header)
 	body, _ := io.ReadAll(resp.Body)
-	log.Println("[ReqSender] Response Body:", string(body))
+	log.Printf("[ReqSender] Response (%d): %s\n", resp.StatusCode, string(body))
 
 	return nil
 }
@@ -171,9 +156,6 @@ func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter
 			return
 		}
 		defer r.Body.Close()
-
-		// DEBUG: Print Header
-		log.Println("[EvHandler] Received header:", r.Header)
 
 		// Deserialize the message
 		payload, err := tp.DeserializeWebhookMessage(body)
@@ -344,6 +326,9 @@ func (tpb *TaipeionBot) Start() error {
 	}
 }
 
+// # New Chatbot Instance
+//
+// Create a new chatbot instance.
 func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16, apiPlatformEndpoint string, apiPlatformClientId string, apiPlatformClientToken string) *TaipeionBot {
 	return &TaipeionBot{
 		Endpoint:      endpoint,
@@ -355,6 +340,9 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 	}
 }
 
+// # New Chatbot Instance from Configuration
+//
+// Create a new chatbot instance from a configuration.
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
 	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port, config.ApiPlatformEndpoint, config.ApiPlatformClientId, config.ApiPlatformClientToken)
 }
