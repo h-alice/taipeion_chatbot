@@ -18,6 +18,16 @@ type LlmModelResponse struct {
 	Response  string `json:"response_text"`
 }
 
+type LlmConnector struct {
+	LlmEndpoint string // The URL of the LLM server.
+}
+
+func NewLlmConnector(llmEndpoint string) *LlmConnector {
+	return &LlmConnector{
+		LlmEndpoint: llmEndpoint,
+	}
+}
+
 // NOTE: We use stdout printing only to handling error.
 func LlmRequestSender(prompt LlmUserQuery, llmEndpoint string) string {
 
