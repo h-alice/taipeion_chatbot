@@ -54,6 +54,8 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	userId := event.Source.UserId   // User ID
 	userQuery := event.Message.Text // User query
 
+	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
+
 	// Create a new user query.
 	userQueryPayload := LlmUserQuery{
 		ChannelId: chan_id,
@@ -68,9 +70,10 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 		return err
 	}
 
-	finalResponse := fmt.Sprintf("%s\n%s", response.Response, response.Reference)
+	concatedResponse := fmt.Sprintf("%s\n\n%s", response.Response, response.Reference)
+	log.Printf("[LlmCallback] Model response for user (%s) on channel (%d): %s\n", userId, chan_id, concatedResponse)
 
-	return bot.SendPrivateMessage(userId, finalResponse, chan_id)
+	return bot.SendPrivateMessage(userId, concatedResponse, chan_id)
 }
 
 func (c *LlmConnector) LlmRequestSender(prompt LlmUserQuery) (LlmModelResponse, error) {
