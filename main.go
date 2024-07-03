@@ -26,7 +26,7 @@ func main() {
 
 	llm := NewLlmConnector(config.LlmEndpoint)
 
-	// Register the simple callback
+	// Register callbacks.
 	bot.RegisterWebhookEventCallback(llm.LlmCallback)
 
 	// Start the chatbot
