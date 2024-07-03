@@ -108,8 +108,17 @@ func (tpb *TaipeionBot) SendPrivateMessage(userId string, message string, target
 // # Perform a POST request to the TaipeiON endpoint
 func (tpb *TaipeionBot) DoEndpointPostRequest(endpoint string, channelPayload tp.ChannelMessagePayload, target_channel int) error {
 
-	tpb.api_client.RequestAccessToken()
-	tpb.api_client.RequestSignBlock()
+	_, err := tpb.api_client.RequestAccessToken()
+	if err != nil {
+		log.Printf("[ReqSender] Error: Unable to request access token: %s\n", err)
+		return err
+	}
+
+	_, err = tpb.api_client.RequestSignBlock()
+	if err != nil {
+		log.Printf("[ReqSender] Error: Unable to request sign block: %s\n", err)
+		return err
+	}
 
 	log.Println(channelPayload)
 
