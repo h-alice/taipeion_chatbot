@@ -8,21 +8,33 @@ import (
 	"net/http"
 )
 
+// # LLM User Query Struct
+//
+// This struct is used to represent a user query that is sent to the LLM server.
 type LlmUserQuery struct {
 	ChannelId int    `json:"CHANNEL_ID"`
 	UserId    string `json:"USER_ID"`
 	Query     string `json:"USER_QUERY"`
 }
 
+// # LLM Model Response Struct
+//
+// This struct is used to represent the response from the LLM server.
 type LlmModelResponse struct {
 	Reference string `json:"reference_text"`
 	Response  string `json:"response_text"`
 }
 
+// # LLM Connector
+//
+// This is the main LLM connector struct.
 type LlmConnector struct {
 	LlmEndpoint string // The URL of the LLM server.
 }
 
+// # New LLM Connector
+//
+// This function creates a new LLM connector instance.
 func NewLlmConnector(llmEndpoint string) *LlmConnector {
 	return &LlmConnector{
 		LlmEndpoint: llmEndpoint,
@@ -37,9 +49,10 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 		return nil
 	}
 
-	chan_id := event.Destination
-	userId := event.Source.UserId
-	userQuery := event.Message.Text
+	// Information gathering.
+	chan_id := event.Destination    // Channel ID
+	userId := event.Source.UserId   // User ID
+	userQuery := event.Message.Text // User query
 
 	// Create a new user query.
 	userQueryPayload := LlmUserQuery{
