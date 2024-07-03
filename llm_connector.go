@@ -70,44 +70,52 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 		return err
 	}
 
+	// Create model response.
 	concatedResponse := fmt.Sprintf("%s\n\n%s", response.Response, response.Reference)
 	log.Printf("[LlmCallback] Model response for user (%s) on channel (%d): %s\n", userId, chan_id, concatedResponse)
 
 	return bot.SendPrivateMessage(userId, concatedResponse, chan_id)
 }
 
+// # LLM Request Sender
+//
+// This function sends a user query to the LLM server and returns the response.
 func (c *LlmConnector) LlmRequestSender(prompt LlmUserQuery) (LlmModelResponse, error) {
 
+	// Serialize the user query.
 	request_payload, err := json.Marshal(prompt)
 	if err != nil {
 		log.Println("[LlmConnector] Unable to serialize user query:", err)
 		return LlmModelResponse{}, err
 	}
 
+	// Create a new HTTP request.
 	req, err := http.NewRequest("POST", c.LlmEndpoint, bytes.NewBuffer(request_payload))
 	if err != nil {
 		log.Println("[LlmConnector] Unable to create request:", err)
 		return LlmModelResponse{}, err
 	}
 
+	// Set the request headers.
 	req.Header.Set("Content-Type", "application/json")
 
-	log.Println(req.Header)
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	// Perform the request.
+	client := &http.Client{}    // Create a new HTTP client.
+	resp, err := client.Do(req) // Perform the request.
 	if err != nil {
 		log.Println("[LlmConnector] Unable to perform request:", err)
 		return LlmModelResponse{}, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // Close the response body when done.
 
-	modelResp := LlmModelResponse{}
-
-	err = json.NewDecoder(resp.Body).Decode(&modelResp)
+	// Create a new model response.
+	modelResp := LlmModelResponse{}                     // Create a new model response.
+	err = json.NewDecoder(resp.Body).Decode(&modelResp) // Decode the response body.
 	if err != nil {
 		log.Println("[LlmConnector] Unable to decode response:", err)
 		return LlmModelResponse{}, err
 	}
 
+	// Return the model response.
 	return modelResp, nil
 }
