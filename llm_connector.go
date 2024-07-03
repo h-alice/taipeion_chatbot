@@ -8,9 +8,14 @@ import (
 )
 
 type LlmUserQuery struct {
-	ChannelId int    `json:"channel-id"`
-	UserId    string `json:"user-id"`
-	Query     string `json:"query"`
+	ChannelId int    `json:"CHANNEL_ID"`
+	UserId    string `json:"USER_ID"`
+	Query     string `json:"USER_QUERY"`
+}
+
+type LlmModelResponse struct {
+	Reference string `json:"reference_text"`
+	Response  string `json:"response_text"`
 }
 
 // NOTE: We use stdout printing only to handling error.
