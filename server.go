@@ -35,6 +35,7 @@ type ServerConfig struct {
 	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
 	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
 	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
+	LlmEndpoint            string          `yaml:"llm-endpoint"`
 }
 
 type ChatbotWebhookEvent struct {
