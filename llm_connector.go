@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 )
 
 // # LLM User Query Struct
@@ -30,6 +31,7 @@ type LlmModelResponse struct {
 // This is the main LLM connector struct.
 type LlmConnector struct {
 	LlmEndpoint string // The URL of the LLM server.
+	waitingCounter int32
 }
 
 // # New LLM Connector
@@ -56,6 +58,14 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
 
+	err := bot.SendPrivateMessage(userId, fmt.Sprintf("正在處理您的問題，視當前情況大約需要30秒~數分鐘不等\n感謝您的耐心等待!\n(目前排隊: %d)", c.waitingCounter), chan_id)
+
+	if err != nil {
+		return err
+	}
+
+	atomic.AddInt32(&c.waitingCounter, 1)
+
 	// Create a new user query.
 	userQueryPayload := LlmUserQuery{
 		ChannelId: chan_id,
@@ -73,6 +83,8 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	// Create model response.
 	concatedResponse := fmt.Sprintf("%s\n\n%s", response.Response, response.Reference)
 	log.Printf("[LlmCallback] Model response for user (%s) on channel (%d): %s\n", userId, chan_id, concatedResponse)
+
+	atomic.AddInt32(&c.waitingCounter, -1)
 
 	return bot.SendPrivateMessage(userId, concatedResponse, chan_id)
 }
