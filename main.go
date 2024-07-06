@@ -15,13 +15,13 @@ func DelayedLoggingEventCallback(bot *TaipeionBot, event ChatbotWebhookEvent) er
 		return nil
 	}
 
-	log.Printf("[DelayedLogger] Received event: %#v\n", event)
+	log.Printf("[DelayedLogger] >>>>>>>>>> Received event: %#v\n", event)
 
-	log.Println("[DelayedLogger] Entering DelayedLoggingEventCallback, sleeping for 5 seconds.")
+	log.Println("[DelayedLogger] >>>>>>>>>> Entering DelayedLoggingEventCallback, sleeping for 5 seconds.")
 
 	time.Sleep(5 * time.Second)
 
-	log.Println("[DelayedLogger] Leaving DelayedLoggingEventCallback.")
+	log.Println("[DelayedLogger] <<<<<<<<<< Leaving DelayedLoggingEventCallback.")
 	return nil
 }
 
