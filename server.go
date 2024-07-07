@@ -226,8 +226,8 @@ func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Contex
 	log.Printf("%v\n", tpb.eventSemaphore)
 	//ctx = context.WithoutCancel(ctx)
 	//tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
-	err := event_handler(tpb, event)   // Call the event handler.
-	
+	err := event_handler(tpb, event) // Call the event handler.
+
 	//tpb.eventSemaphore.Release(1)      // Release the semaphore if callback is done.
 	log.Println("[Wrapper] Exiting.")
 	return err
@@ -314,9 +314,6 @@ func (tpb *TaipeionBot) Start() error {
 	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
 
 	for {
-		// Setup concurrency semaphore.
-		tpb.eventSemaphore = semaphore.NewWeighted(3) // TODO: Adjust the semaphore weight.
-
 		// Create a new context.
 		ctx, cancel := context.WithCancel(context.Background())
 
