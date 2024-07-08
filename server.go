@@ -35,6 +35,7 @@ type ServerConfig struct {
 	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
 	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
 	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
+	MaxConcurrentEvent     int             `yaml:"max-concurrent-event-handlers"`
 	LlmEndpoint            string          `yaml:"llm-endpoint"`
 }
 
@@ -224,11 +225,11 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event ChatbotWebhookEvent) error {
 	log.Println("[Wrapper] Entering.")
 	log.Printf("%v\n", tpb.eventSemaphore)
-	//ctx = context.WithoutCancel(ctx)
-	//tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
-	err := event_handler(tpb, event) // Call the event handler.
+	ctx = context.WithoutCancel(ctx)
+	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
+	err := event_handler(tpb, event)   // Call the event handler.
 
-	//tpb.eventSemaphore.Release(1)      // Release the semaphore if callback is done.
+	tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
 	log.Println("[Wrapper] Exiting.")
 	return err
 }
@@ -331,13 +332,13 @@ func (tpb *TaipeionBot) Start() error {
 // # New Chatbot Instance
 //
 // Create a new chatbot instance.
-func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16, apiPlatformEndpoint string, apiPlatformClientId string, apiPlatformClientToken string) *TaipeionBot {
+func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16, apiPlatformEndpoint string, apiPlatformClientId string, apiPlatformClientToken string, maxConcurrentEvent int) *TaipeionBot {
 	return &TaipeionBot{
 		Endpoint:      endpoint,
 		Channels:      channels,
 		ServerAddress: serverAddress,
 		ServerPort:    serverPort,
-		maxConcurrent: 1, // TODO: Adjust the semaphore weight.
+		maxConcurrent: maxConcurrentEvent,
 		api_client:    api_platform.NewApiPlatformClient(apiPlatformEndpoint, apiPlatformClientId, apiPlatformClientToken),
 	}
 }
@@ -346,5 +347,5 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 //
 // Create a new chatbot instance from a configuration.
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
-	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port, config.ApiPlatformEndpoint, config.ApiPlatformClientId, config.ApiPlatformClientToken)
+	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port, config.ApiPlatformEndpoint, config.ApiPlatformClientId, config.ApiPlatformClientToken, config.MaxConcurrentEvent)
 }
