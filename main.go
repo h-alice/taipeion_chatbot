@@ -47,9 +47,7 @@ func main() {
 	// Register callbacks.
 	//bot.RegisterWebhookEventCallback(llm.LlmCallback)
 
-	// Register a delayed logging callback
-	bot.RegisterWebhookEventCallback(DelayedLoggingEventCallback)
-
+	bot.RegisterWebhookEventCallback(SimpleWebhookEventCallback)
 	// Start the chatbot
 	_ = bot.Start()
 
