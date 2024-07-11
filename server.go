@@ -353,5 +353,13 @@ func NewChatbotInstance(
 //
 // Create a new chatbot instance from a configuration.
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
-	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port, config.ApiPlatformEndpoint, config.ApiPlatformClientId, config.ApiPlatformClientToken, config.MaxConcurrentEvent)
+	return NewChatbotInstance(
+		config.Endpoint,
+		config.Channels,
+		config.Address,
+		config.Port,
+		config.ApiPlatformEndpoint,
+		config.ApiPlatformClientId,
+		config.ApiPlatformClientToken,
+		config.MaxConcurrentEvent)
 }
