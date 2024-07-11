@@ -329,7 +329,16 @@ func (tpb *TaipeionBot) Start() error {
 // # New Chatbot Instance
 //
 // Create a new chatbot instance.
-func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16, apiPlatformEndpoint string, apiPlatformClientId string, apiPlatformClientToken string, maxConcurrentEvent int) *TaipeionBot {
+func NewChatbotInstance(
+	endpoint string,
+	channels map[int]Channel,
+	serverAddress string,
+	serverPort int16,
+	apiPlatformEndpoint string,
+	apiPlatformClientId string,
+	apiPlatformClientToken string,
+	maxConcurrentEvent int) *TaipeionBot {
+
 	return &TaipeionBot{
 		Endpoint:      endpoint,
 		Channels:      channels,
