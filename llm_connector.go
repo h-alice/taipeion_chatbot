@@ -30,8 +30,8 @@ type LlmModelResponse struct {
 //
 // This is the main LLM connector struct.
 type LlmConnector struct {
-	LlmEndpoint string // The URL of the LLM server.
-	waitingCounter int32
+	LlmEndpoint    string // The URL of the LLM server.
+	waitingCounter int32  // Indicates the current waiting requests.
 }
 
 // # New LLM Connector
