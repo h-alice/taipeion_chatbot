@@ -7,5 +7,6 @@ channels:
   1: # Your channel ID.
     channel-secret: your-channel-secret
     channel-access-token: your-channel-access-token
+max-concurrent-event-handlers: 5 # Max concurrent handler threads.
 address: 0.0.0.0 # Address to listen on.
 port: 443 # Port to listen on.
