@@ -26,6 +26,7 @@ type response struct {
 type Channel struct {
 	ChannelSecret      string `yaml:"channel-secret"`
 	ChannelAccessToken string `yaml:"channel-access-token"`
+	ChannelLlmEndpoint string `yaml:"llm-endpoint"`
 }
 type ServerConfig struct {
 	Endpoint               string          `yaml:"taipeion-endpoint"`
@@ -36,7 +37,6 @@ type ServerConfig struct {
 	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
 	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
 	MaxConcurrentEvent     int             `yaml:"max-concurrent-event-handlers"`
-	LlmEndpoint            string          `yaml:"llm-endpoint"`
 }
 
 type ChatbotWebhookEvent struct {
