@@ -167,9 +167,9 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 
 		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EvProcessor] Processing event: %#v\n", event)
-			for _, event_handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.callback)
-				go tpb.eventProcessorInternalCallbackWrapper(ctx, event_handler, event) // Call the handler in a goroutine.
+			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", handler)
+				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
 			}
 		}
 	}
@@ -181,25 +181,21 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 // So there's no need to deal with the semaphore or context in the callback function.
 //
 // The function is for internal use only.
-func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler_entry eventHandlerEntry, event ChatbotWebhookEvent) error {
+func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event ChatbotWebhookEvent) error {
 	ctx = context.WithoutCancel(ctx)
-	if event_handler_entry.isPriority {
-		return event_handler_entry.callback(tpb, event) // Directly call the event handler.
-	} else {
-		tpb.eventSemaphore.Acquire(ctx, 1)              // Acquire the semaphore, wait until available.
-		err := event_handler_entry.callback(tpb, event) // Call the event handler.
+	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
+	err := event_handler(tpb, event)   // Call the event handler.
 
-		tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
-		return err
-	}
+	tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
+	return err
 }
 
 // # Webhook Event Registration
 //
 // Register a webhook event callback.
 // All registered callbacks will be called when an event is received.
-func (tpb *TaipeionBot) RegisterWebhookEventCallback(ev_handler_entry eventHandlerEntry) {
-	tpb.eventHandlers = append(tpb.eventHandlers, ev_handler_entry)
+func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
+	tpb.eventHandlers = append(tpb.eventHandlers, callback)
 }
 
 // # Main loop
