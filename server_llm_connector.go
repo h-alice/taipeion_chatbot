@@ -102,7 +102,11 @@ func (c *LlmConnector) LlmRequestSender(prompt LlmUserQuery) (LlmModelResponse, 
 	}
 
 	// Create a new HTTP request.
-	req, err := http.NewRequest("POST", c.channelMap[prompt.ChannelId].ChannelLlmEndpoint, bytes.NewBuffer(request_payload))
+	req, err := http.NewRequest(
+		"POST",
+		c.channelMap[prompt.ChannelId].ChannelLlmEndpoint,
+		bytes.NewBuffer(request_payload))
+
 	if err != nil {
 		log.Println("[LlmConnector] Unable to create request:", err)
 		return LlmModelResponse{}, err
