@@ -103,7 +103,7 @@ func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
 			// Ignore and send OK.
 			response := response{Status: "no content"}
-			w.WriteHeader(http.StatusAccepted)
+			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
 			return
