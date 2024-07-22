@@ -29,7 +29,6 @@ func main() {
 	// Register callbacks.
 	bot.RegisterWebhookEventCallback(llm.LlmCallback)
 
-	bot.RegisterWebhookEventCallback(SimpleWebhookEventCallback)
 	// Start the chatbot
 	_ = bot.Start()
 
