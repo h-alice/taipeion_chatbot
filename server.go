@@ -55,7 +55,7 @@ type TaipeionBot struct {
 	ServerAddress  string
 	ServerPort     int16
 	eventQueue     chan ChatbotWebhookEvent
-	eventHandlers  []WebhookEventCallback
+	eventHandlers  []eventHandlerEntry
 	eventSemaphore *semaphore.Weighted
 	maxConcurrent  int
 	api_client     *api_platform.ApiPlatformClient
