@@ -213,9 +213,9 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 
 		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EvProcessor] Processing event: %#v\n", event)
-			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EvProcessor] Processing event with handler: %#v\n", handler)
-				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
+			for _, event_handler := range tpb.eventHandlers { // Iterate over the event handlers.
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.callback)
+				go tpb.eventProcessorInternalCallbackWrapper(ctx, event_handler, event) // Call the handler in a goroutine.
 			}
 		}
 	}
