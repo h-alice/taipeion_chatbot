@@ -19,7 +19,7 @@ type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
 
 type eventHandlerEntry struct {
 	callback   WebhookEventCallback
-	isPirority bool
+	isPriority bool
 }
 
 // Define a struct for the response
