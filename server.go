@@ -240,8 +240,8 @@ func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Contex
 //
 // Register a webhook event callback.
 // All registered callbacks will be called when an event is received.
-func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
-	tpb.eventHandlers = append(tpb.eventHandlers, callback)
+func (tpb *TaipeionBot) RegisterWebhookEventCallback(ev_handler_entry eventHandlerEntry) {
+	tpb.eventHandlers = append(tpb.eventHandlers, ev_handler_entry)
 }
 
 // # Main loop
