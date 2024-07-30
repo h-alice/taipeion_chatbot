@@ -227,13 +227,17 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 // So there's no need to deal with the semaphore or context in the callback function.
 //
 // The function is for internal use only.
-func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event ChatbotWebhookEvent) error {
+func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler_entry eventHandlerEntry, event ChatbotWebhookEvent) error {
 	ctx = context.WithoutCancel(ctx)
-	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
-	err := event_handler(tpb, event)   // Call the event handler.
+	if event_handler_entry.isPriority {
+		return event_handler_entry.callback(tpb, event) // Directly call the event handler.
+	} else {
+		tpb.eventSemaphore.Acquire(ctx, 1)              // Acquire the semaphore, wait until available.
+		err := event_handler_entry.callback(tpb, event) // Call the event handler.
 
-	tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
-	return err
+		tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
+		return err
+	}
 }
 
 // # Webhook Event Registration
