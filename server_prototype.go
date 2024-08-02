@@ -10,6 +10,11 @@ import (
 
 type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
 
+type eventHandlerEntry struct {
+	callback   WebhookEventCallback
+	isPriority bool
+}
+
 // Define a struct for the response
 type response struct {
 	Status string `json:"status"`
