@@ -27,7 +27,7 @@ func main() {
 	llm := NewLlmConnector(config.Channels)
 
 	// Register callbacks.
-	bot.RegisterWebhookEventCallback(llm.LlmCallback)
+	bot.RegisterWebhookEventCallback(ScheduleNormalPriority(llm.LlmCallback))
 
 	bot.RegisterWebhookEventCallback(ScheduleHighestPriority(SimpleWebhookEventCallback))
 	// Start the chatbot
