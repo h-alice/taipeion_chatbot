@@ -1,13 +1,13 @@
 package main
 
-func ScheduleNormalPriority(callback WebhookEventCallback) eventHandlerEntry {
+func ScheduleCallbackNormalPriority(callback WebhookEventCallback) eventHandlerEntry {
 	return eventHandlerEntry{
 		callback:   callback,
 		isPriority: false,
 	}
 }
 
-func ScheduleHighestPriority(callback WebhookEventCallback) eventHandlerEntry {
+func ScheduleCallbackHighestPriority(callback WebhookEventCallback) eventHandlerEntry {
 	return eventHandlerEntry{
 		callback:   callback,
 		isPriority: true,
