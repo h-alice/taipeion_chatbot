@@ -2,14 +2,14 @@ package main
 
 func ScheduleCallbackNormalPriority(callback WebhookEventCallback) eventHandlerEntry {
 	return eventHandlerEntry{
-		callback:   callback,
-		isPriority: false,
+		Callback:   callback,
+		IsPriority: false,
 	}
 }
 
 func ScheduleCallbackHighestPriority(callback WebhookEventCallback) eventHandlerEntry {
 	return eventHandlerEntry{
-		callback:   callback,
-		isPriority: true,
+		Callback:   callback,
+		IsPriority: true,
 	}
 }
