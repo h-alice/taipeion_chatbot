@@ -11,29 +11,29 @@ import (
 type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
 
 type eventHandlerEntry struct {
-	Callback   WebhookEventCallback
-	IsPriority bool
+	Callback   WebhookEventCallback // The callback function.
+	IsPriority bool                 // Indicates if the callback is a priority callback (bypass the concuurancy limit).
 }
 
 // Define a struct for the response
 type response struct {
-	Status string `json:"status"`
+	Status string `json:"status"` // Status of an empty response.
 }
 
 // Definiton of the channel struct.
 type Channel struct {
-	ChannelSecret      string `yaml:"channel-secret"`
-	ChannelAccessToken string `yaml:"channel-access-token"`
-	ChannelLlmEndpoint string `yaml:"llm-endpoint"`
+	ChannelSecret      string `yaml:"channel-secret"`       // The secret of the channel, get it from TaipeiON admin panel.
+	ChannelAccessToken string `yaml:"channel-access-token"` // The access token of the channel.
+	ChannelLlmEndpoint string `yaml:"llm-endpoint"`         // The endpoint of the LLM server for this channel.
 }
 
-type ChannelIdConfigMap map[int]Channel
+type ChannelIdConfigMap map[int]Channel // A map from channel ID to channel configuration.
 
 type ServerConfig struct {
-	Endpoint               string             `yaml:"taipeion-endpoint"`
-	Channels               ChannelIdConfigMap `yaml:"channels"`
-	Address                string             `yaml:"address"`
-	Port                   int16              `yaml:"port"`
+	Endpoint               string             `yaml:"taipeion-endpoint"` // The endpoint of the Taipeion server.
+	Channels               ChannelIdConfigMap `yaml:"channels"`          // The configuration of the channels.
+	Address                string             `yaml:"address"`           // Local IP to listen on.
+	Port                   int16              `yaml:"port"`              // Local port to listen on.
 	ApiPlatformEndpoint    string             `yaml:"api-platform-endpoint"`
 	ApiPlatformClientId    string             `yaml:"api-platform-client-id"`
 	ApiPlatformClientToken string             `yaml:"api-platform-client-token"`
