@@ -46,13 +46,13 @@ type ChatbotWebhookEvent struct {
 }
 
 type TaipeionBot struct {
-	Endpoint       string
-	Channels       map[int]Channel
-	ServerAddress  string
-	ServerPort     int16
-	eventQueue     chan ChatbotWebhookEvent
-	eventHandlers  []eventHandlerEntry
-	eventSemaphore *semaphore.Weighted
-	maxConcurrent  int
-	api_client     *api_platform.ApiPlatformClient
+	Endpoint       string                          // The endpoint of the Taipeion server.
+	Channels       map[int]Channel                 // A map from channel ID to channel configuration.
+	ServerAddress  string                          // The address to listen on.
+	ServerPort     int16                           // The port to listen on.
+	eventQueue     chan ChatbotWebhookEvent        // Event queue, every incoming event will be put into this queue.
+	eventHandlers  []eventHandlerEntry             // Event handlers.
+	eventSemaphore *semaphore.Weighted             // Semaphore for event handlers.
+	maxConcurrent  int                             // Maximum number of concurrent event handlers.
+	api_client     *api_platform.ApiPlatformClient // Insrance of the API platform client.
 }
