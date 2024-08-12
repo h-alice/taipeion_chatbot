@@ -13,25 +13,25 @@ import (
 //
 // This struct is used to represent a user query that is sent to the LLM server.
 type LlmUserQuery struct {
-	ChannelId int    `json:"CHANNEL_ID"`
-	UserId    string `json:"USER_ID"`
-	Query     string `json:"USER_QUERY"`
+	ChannelId int    `json:"CHANNEL_ID"` // The channel ID.
+	UserId    string `json:"USER_ID"`    // The user ID.
+	Query     string `json:"USER_QUERY"` // The user query.
 }
 
 // # LLM Model Response Struct
 //
 // This struct is used to represent the response from the LLM server.
 type LlmModelResponse struct {
-	Reference string `json:"reference_text"`
-	Response  string `json:"response_text"`
+	Reference string `json:"reference_text"` // The reference part of the model response.
+	Response  string `json:"response_text"`  // The main model response.
 }
 
 // # LLM Connector
 //
 // This is the main LLM connector struct.
 type LlmConnector struct {
-	channelMap     ChannelIdConfigMap
-	waitingCounter int32 // Indicates the current waiting requests.
+	channelMap     ChannelIdConfigMap // A map from channel ID to channel configuration.
+	waitingCounter int32              // Indicates the current waiting requests.
 }
 
 // # New LLM Connector
@@ -39,13 +39,14 @@ type LlmConnector struct {
 // This function creates a new LLM connector instance.
 func NewLlmConnector(channelMap ChannelIdConfigMap) *LlmConnector {
 	return &LlmConnector{
-		channelMap: channelMap,
+		channelMap: channelMap, // Set the channel map.
 	}
 }
 
 func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) error {
 
 	// Check if incoming event is text message.
+	// We do not support non-text messages for now, we may implement it later.
 	if event.Message.Type != "text" {
 		log.Println("[PrivateMessageCallback] Received non-text message. Ignoring.")
 		return nil
