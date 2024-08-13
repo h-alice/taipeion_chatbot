@@ -58,7 +58,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	userQuery := event.Message.Text // User query
 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
-
+	// Send a friendly message.
 	err := bot.SendPrivateMessage(userId, fmt.Sprintf("正在處理您的問題，視當前情況大約需要30秒~數分鐘不等\n感謝您的耐心等待!\n(目前排隊: %d)", c.waitingCounter), chan_id)
 
 	if err != nil {
@@ -87,7 +87,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 
 	atomic.AddInt32(&c.waitingCounter, -1) // Decrease waiting counter by 1.
 
-	return bot.SendPrivateMessage(userId, concatedResponse, chan_id)
+	return bot.SendPrivateMessage(userId, concatedResponse, chan_id) // Send final result.
 }
 
 // # LLM Request Sender
