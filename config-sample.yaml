@@ -2,10 +2,15 @@ taipeion-endpoint: https://apimtest.gov.taipei/tsmpc/m-taipeion/MessageFeedServi
 api-platform-endpoint: https://apimtest.gov.taipei # API platform endpoint for test server.
 api-platform-client-id: your-api-platform-client-id # Your API platform client ID.
 api-platform-client-token: your-api-platform-client-token # Your API platform client token.
-llm-endpoint: url-of-your-llm-endpoint # LLM endpoint.
 channels:
   1: # Your channel ID.
     channel-secret: your-channel-secret
     channel-access-token: your-channel-access-token
+    llm-endpoint: url-of-your-llm-endpoint # LLM endpoint for channel 1.
+  2: # Your channel ID.
+    channel-secret: your-channel-secret
+    channel-access-token: your-channel-access-token
+    llm-endpoint: url-of-your-llm-endpoint # LLM endpoint for channel 2.
+max-concurrent-event-handlers: 5 # Max concurrent handler threads.
 address: 0.0.0.0 # Address to listen on.
 port: 443 # Port to listen on.

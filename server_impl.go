@@ -15,52 +15,6 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
-
-type eventHandlerEntry struct {
-	callback   WebhookEventCallback
-	isPriority bool
-}
-
-// Define a struct for the response
-type response struct {
-	Status string `json:"status"`
-}
-
-// Definiton of the channel struct.
-type Channel struct {
-	ChannelSecret      string `yaml:"channel-secret"`
-	ChannelAccessToken string `yaml:"channel-access-token"`
-}
-type ServerConfig struct {
-	Endpoint               string          `yaml:"taipeion-endpoint"`
-	Channels               map[int]Channel `yaml:"channels"`
-	Address                string          `yaml:"address"`
-	Port                   int16           `yaml:"port"`
-	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
-	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
-	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
-	MaxConcurrentEvent     int             `yaml:"max-concurrent-event-handlers"`
-	LlmEndpoint            string          `yaml:"llm-endpoint"`
-}
-
-type ChatbotWebhookEvent struct {
-	Destination int
-	tp.MessageEvent
-}
-
-type TaipeionBot struct {
-	Endpoint       string
-	Channels       map[int]Channel
-	ServerAddress  string
-	ServerPort     int16
-	eventQueue     chan ChatbotWebhookEvent
-	eventHandlers  []eventHandlerEntry
-	eventSemaphore *semaphore.Weighted
-	maxConcurrent  int
-	api_client     *api_platform.ApiPlatformClient
-}
-
 // # Enqueue an incoming webhook event.
 func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 	tpb.eventQueue <- event
@@ -149,7 +103,7 @@ func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
 			// Ignore and send OK.
 			response := response{Status: "no content"}
-			w.WriteHeader(http.StatusAccepted)
+			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
 			return
