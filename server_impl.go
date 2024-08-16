@@ -168,7 +168,7 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EvProcessor] Processing event: %#v\n", event)
 			for _, event_handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.callback)
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.Callback)
 				go tpb.eventProcessorInternalCallbackWrapper(ctx, event_handler, event) // Call the handler in a goroutine.
 			}
 		}
@@ -183,11 +183,11 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 // The function is for internal use only.
 func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler_entry eventHandlerEntry, event ChatbotWebhookEvent) error {
 	ctx = context.WithoutCancel(ctx)
-	if event_handler_entry.isPriority {
-		return event_handler_entry.callback(tpb, event) // Directly call the event handler.
+	if event_handler_entry.IsPriority {
+		return event_handler_entry.Callback(tpb, event) // Directly call the event handler.
 	} else {
 		tpb.eventSemaphore.Acquire(ctx, 1)              // Acquire the semaphore, wait until available.
-		err := event_handler_entry.callback(tpb, event) // Call the event handler.
+		err := event_handler_entry.Callback(tpb, event) // Call the event handler.
 
 		tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
 		return err
