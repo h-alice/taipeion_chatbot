@@ -15,6 +15,52 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
+
+type eventHandlerEntry struct {
+	callback   WebhookEventCallback
+	isPriority bool
+}
+
+// Define a struct for the response
+type response struct {
+	Status string `json:"status"`
+}
+
+// Definiton of the channel struct.
+type Channel struct {
+	ChannelSecret      string `yaml:"channel-secret"`
+	ChannelAccessToken string `yaml:"channel-access-token"`
+}
+type ServerConfig struct {
+	Endpoint               string          `yaml:"taipeion-endpoint"`
+	Channels               map[int]Channel `yaml:"channels"`
+	Address                string          `yaml:"address"`
+	Port                   int16           `yaml:"port"`
+	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
+	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
+	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
+	MaxConcurrentEvent     int             `yaml:"max-concurrent-event-handlers"`
+	LlmEndpoint            string          `yaml:"llm-endpoint"`
+}
+
+type ChatbotWebhookEvent struct {
+	Destination int
+	tp.MessageEvent
+}
+
+type TaipeionBot struct {
+	Endpoint       string
+	Channels       map[int]Channel
+	ServerAddress  string
+	ServerPort     int16
+	eventQueue     chan ChatbotWebhookEvent
+	eventHandlers  []eventHandlerEntry
+	eventSemaphore *semaphore.Weighted
+	maxConcurrent  int
+	api_client     *api_platform.ApiPlatformClient
+}
+
 // # Enqueue an incoming webhook event.
 func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 	tpb.eventQueue <- event
@@ -168,7 +214,7 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EvProcessor] Processing event: %#v\n", event)
 			for _, event_handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.Callback)
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.callback)
 				go tpb.eventProcessorInternalCallbackWrapper(ctx, event_handler, event) // Call the handler in a goroutine.
 			}
 		}
@@ -183,11 +229,11 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 // The function is for internal use only.
 func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler_entry eventHandlerEntry, event ChatbotWebhookEvent) error {
 	ctx = context.WithoutCancel(ctx)
-	if event_handler_entry.IsPriority {
-		return event_handler_entry.Callback(tpb, event) // Directly call the event handler.
+	if event_handler_entry.isPriority {
+		return event_handler_entry.callback(tpb, event) // Directly call the event handler.
 	} else {
 		tpb.eventSemaphore.Acquire(ctx, 1)              // Acquire the semaphore, wait until available.
-		err := event_handler_entry.Callback(tpb, event) // Call the event handler.
+		err := event_handler_entry.callback(tpb, event) // Call the event handler.
 
 		tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
 		return err
@@ -198,8 +244,8 @@ func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Contex
 //
 // Register a webhook event callback.
 // All registered callbacks will be called when an event is received.
-func (tpb *TaipeionBot) RegisterWebhookEventCallback(handler_entry eventHandlerEntry) {
-	tpb.eventHandlers = append(tpb.eventHandlers, handler_entry)
+func (tpb *TaipeionBot) RegisterWebhookEventCallback(ev_handler_entry eventHandlerEntry) {
+	tpb.eventHandlers = append(tpb.eventHandlers, ev_handler_entry)
 }
 
 // # Main loop
