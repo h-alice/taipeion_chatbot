@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+// The prototype of the webhook event callback.
 type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
 
 type eventHandlerEntry struct {
@@ -30,29 +31,29 @@ type Channel struct {
 type ChannelIdConfigMap map[int]Channel // A map from channel ID to channel configuration.
 
 type ServerConfig struct {
-	Endpoint               string             `yaml:"taipeion-endpoint"` // The endpoint of the Taipeion server.
-	Channels               ChannelIdConfigMap `yaml:"channels"`          // The configuration of the channels.
-	Address                string             `yaml:"address"`           // Local IP to listen on.
-	Port                   int16              `yaml:"port"`              // Local port to listen on.
-	ApiPlatformEndpoint    string             `yaml:"api-platform-endpoint"`
-	ApiPlatformClientId    string             `yaml:"api-platform-client-id"`
-	ApiPlatformClientToken string             `yaml:"api-platform-client-token"`
-	MaxConcurrentEvent     int                `yaml:"max-concurrent-event-handlers"`
+	Endpoint               string             `yaml:"taipeion-endpoint"`             // The endpoint of the Taipeion server.
+	Channels               ChannelIdConfigMap `yaml:"channels"`                      // The configuration of the channels.
+	Address                string             `yaml:"address"`                       // Local IP to listen on.
+	Port                   int16              `yaml:"port"`                          // Local port to listen on.
+	ApiPlatformEndpoint    string             `yaml:"api-platform-endpoint"`         // The endpoint of the API platform.
+	ApiPlatformClientId    string             `yaml:"api-platform-client-id"`        // The client ID of the API platform.
+	ApiPlatformClientToken string             `yaml:"api-platform-client-token"`     // The client token of the API platform.
+	MaxConcurrentEvent     int                `yaml:"max-concurrent-event-handlers"` // Maximum number of concurrent event handlers.
 }
 
 type ChatbotWebhookEvent struct {
-	Destination int
-	tp.MessageEvent
+	Destination     int // ID of incoming channel. Since the Destination field is not in the event object, we need to add it.
+	tp.MessageEvent     // The message event.
 }
 
 type TaipeionBot struct {
-	Endpoint       string
-	Channels       map[int]Channel
-	ServerAddress  string
-	ServerPort     int16
-	eventQueue     chan ChatbotWebhookEvent
-	eventHandlers  []eventHandlerEntry
-	eventSemaphore *semaphore.Weighted
-	maxConcurrent  int
-	api_client     *api_platform.ApiPlatformClient
+	Endpoint       string                          // The endpoint of the Taipeion server.
+	Channels       map[int]Channel                 // A map from channel ID to channel configuration.
+	ServerAddress  string                          // The address to listen on.
+	ServerPort     int16                           // The port to listen on.
+	eventQueue     chan ChatbotWebhookEvent        // Event queue, every incoming event will be put into this queue.
+	eventHandlers  []eventHandlerEntry             // Event handlers.
+	eventSemaphore *semaphore.Weighted             // Semaphore for event handlers.
+	maxConcurrent  int                             // Maximum number of concurrent event handlers.
+	api_client     *api_platform.ApiPlatformClient // Insrance of the API platform client.
 }

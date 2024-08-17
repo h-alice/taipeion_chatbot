@@ -13,25 +13,25 @@ import (
 //
 // This struct is used to represent a user query that is sent to the LLM server.
 type LlmUserQuery struct {
-	ChannelId int    `json:"CHANNEL_ID"`
-	UserId    string `json:"USER_ID"`
-	Query     string `json:"USER_QUERY"`
+	ChannelId int    `json:"CHANNEL_ID"` // The channel ID.
+	UserId    string `json:"USER_ID"`    // The user ID.
+	Query     string `json:"USER_QUERY"` // The user query.
 }
 
 // # LLM Model Response Struct
 //
 // This struct is used to represent the response from the LLM server.
 type LlmModelResponse struct {
-	Reference string `json:"reference_text"`
-	Response  string `json:"response_text"`
+	Reference string `json:"reference_text"` // The reference part of the model response.
+	Response  string `json:"response_text"`  // The main model response.
 }
 
 // # LLM Connector
 //
 // This is the main LLM connector struct.
 type LlmConnector struct {
-	channelMap     ChannelIdConfigMap
-	waitingCounter int32 // Indicates the current waiting requests.
+	channelMap     ChannelIdConfigMap // A map from channel ID to channel configuration.
+	waitingCounter int32              // Indicates the current waiting requests.
 }
 
 // # New LLM Connector
@@ -39,13 +39,14 @@ type LlmConnector struct {
 // This function creates a new LLM connector instance.
 func NewLlmConnector(channelMap ChannelIdConfigMap) *LlmConnector {
 	return &LlmConnector{
-		channelMap: channelMap,
+		channelMap: channelMap, // Set the channel map.
 	}
 }
 
 func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) error {
 
 	// Check if incoming event is text message.
+	// We do not support non-text messages for now, we may implement it later.
 	if event.Message.Type != "text" {
 		log.Println("[PrivateMessageCallback] Received non-text message. Ignoring.")
 		return nil
@@ -57,7 +58,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	userQuery := event.Message.Text // User query
 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
-
+	// Send a friendly message.
 	err := bot.SendPrivateMessage(userId, fmt.Sprintf("正在處理您的問題，視當前情況大約需要30秒~數分鐘不等\n感謝您的耐心等待!\n(目前排隊: %d)", c.waitingCounter), chan_id)
 
 	if err != nil {
@@ -86,7 +87,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 
 	atomic.AddInt32(&c.waitingCounter, -1) // Decrease waiting counter by 1.
 
-	return bot.SendPrivateMessage(userId, concatedResponse, chan_id)
+	return bot.SendPrivateMessage(userId, concatedResponse, chan_id) // Send final result.
 }
 
 // # LLM Request Sender
