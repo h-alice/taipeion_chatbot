@@ -27,7 +27,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 # Copy the pre-built binary file from the previous stage
-COPY --from=builder /app/main .
+COPY --from=builder /app/taipeion_server .
 
 # Command to run the executable
 CMD ["./taipeion_server"]
