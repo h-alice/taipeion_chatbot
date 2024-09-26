@@ -20,7 +20,7 @@ COPY *.go ./
 RUN GOOS=linux go build -o taipeion_server .
 
 # Start a new stage from scratch
-FROM alpine:latest  
+FROM alpine:3.20.3
 
 RUN apk --no-cache add ca-certificates
 
