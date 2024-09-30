@@ -98,6 +98,13 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 
 	// Create model response.
 	concatedResponse := fmt.Sprintf("%s\n\n%s", response.Response, response.Reference)
+
+	// PATCH: Replace certain character fo aviod false-positive of SQL injection.
+	false_positive_chars := []string{"'", ","}
+	for _, char := range false_positive_chars {
+		concatedResponse = strings.ReplaceAll(concatedResponse, char, " ")
+	}
+
 	log.Printf("[LlmCallback] Model response for user (%s) on channel (%d): %s\n", userId, chan_id, concatedResponse)
 
 	atomic.AddInt32(&c.waitingCounter, -1) // Decrease waiting counter by 1.
