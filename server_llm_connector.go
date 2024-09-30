@@ -53,6 +53,12 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 		return nil
 	}
 
+	// Check if channel ID is in the channel map.
+	if _, ok := c.channelMap[event.Destination]; !ok {
+		log.Printf("[LlmCallback] Channel ID (%d) not found in config. Ignoring.\n", event.Destination)
+		return nil
+	}
+
 	// Information gathering.
 	chan_id := event.Destination                               // Channel ID
 	userId := event.Source.UserId                              // User ID
@@ -60,6 +66,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	trigger_word := c.channelMap[chan_id].ChannelTriggerPrefix // Trigger word
 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
+
 	// Check if the user query starts with the trigger word.
 	if !strings.HasPrefix(userQuery, trigger_word) {
 		log.Printf("[LlmCallback] User query does not start with trigger word (%s). Ignoring.\n", trigger_word)
