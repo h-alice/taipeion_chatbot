@@ -23,9 +23,10 @@ type response struct {
 
 // Definiton of the channel struct.
 type Channel struct {
-	ChannelSecret      string `yaml:"channel-secret"`       // The secret of the channel, get it from TaipeiON admin panel.
-	ChannelAccessToken string `yaml:"channel-access-token"` // The access token of the channel.
-	ChannelLlmEndpoint string `yaml:"llm-endpoint"`         // The endpoint of the LLM server for this channel.
+	ChannelSecret        string `yaml:"channel-secret"`       // The secret of the channel, get it from TaipeiON admin panel.
+	ChannelAccessToken   string `yaml:"channel-access-token"` // The access token of the channel.
+	ChannelLlmEndpoint   string `yaml:"llm-endpoint"`         // The endpoint of the LLM server for this channel.
+	ChannelTriggerPrefix string `yaml:"trigger-word"`         // The trigger word for this channel.
 }
 
 type ChannelIdConfigMap map[int]Channel // A map from channel ID to channel configuration.
