@@ -7,10 +7,12 @@ channels:
     channel-secret: your-channel-secret
     channel-access-token: your-channel-access-token
     llm-endpoint: url-of-your-llm-endpoint # LLM endpoint for channel 1.
+    trigger-word: "Hello" # Trigger word for channel 1.
   2: # Your channel ID.
     channel-secret: your-channel-secret
     channel-access-token: your-channel-access-token
     llm-endpoint: url-of-your-llm-endpoint # LLM endpoint for channel 2.
+    trigger-word: "Hello" # Trigger word for channel 2.
 max-concurrent-event-handlers: 5 # Max concurrent handler threads.
 address: 0.0.0.0 # Address to listen on.
 port: 443 # Port to listen on.
