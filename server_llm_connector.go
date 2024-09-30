@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -53,11 +54,18 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	}
 
 	// Information gathering.
-	chan_id := event.Destination    // Channel ID
-	userId := event.Source.UserId   // User ID
-	userQuery := event.Message.Text // User query
+	chan_id := event.Destination                               // Channel ID
+	userId := event.Source.UserId                              // User ID
+	userQuery := event.Message.Text                            // User query
+	trigger_word := c.channelMap[chan_id].ChannelTriggerPrefix // Trigger word
 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
+	// Check if the user query starts with the trigger word.
+	if !strings.HasPrefix(userQuery, trigger_word) {
+		log.Printf("[LlmCallback] User query does not start with trigger word (%s). Ignoring.\n", trigger_word)
+		return nil
+	}
+
 	// Send a friendly message.
 	err := bot.SendPrivateMessage(userId, fmt.Sprintf("正在處理您的問題，視當前情況大約需要30秒~數分鐘不等\n感謝您的耐心等待!\n(目前排隊: %d)", c.waitingCounter), chan_id)
 
