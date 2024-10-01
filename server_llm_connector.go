@@ -31,16 +31,18 @@ type LlmModelResponse struct {
 //
 // This is the main LLM connector struct.
 type LlmConnector struct {
-	channelMap     ChannelIdConfigMap // A map from channel ID to channel configuration.
+	ChannelMap     ChannelIdConfigMap // A map from channel ID to channel configuration.
+	LocalDebugMode bool               // Indicates if the LLM connector is in local debug mode.
 	waitingCounter int32              // Indicates the current waiting requests.
 }
 
 // # New LLM Connector
 //
 // This function creates a new LLM connector instance.
-func NewLlmConnector(channelMap ChannelIdConfigMap) *LlmConnector {
+func NewLlmConnector(channelMap ChannelIdConfigMap, LocalDebugMode bool) *LlmConnector {
 	return &LlmConnector{
-		channelMap: channelMap, // Set the channel map.
+		ChannelMap:     channelMap,     // Set the channel map.
+		LocalDebugMode: LocalDebugMode, // Set the local debug mode.
 	}
 }
 
@@ -54,7 +56,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	}
 
 	// Check if channel ID is in the channel map.
-	if _, ok := c.channelMap[event.Destination]; !ok {
+	if _, ok := c.ChannelMap[event.Destination]; !ok {
 		log.Printf("[LlmCallback] Channel ID (%d) not found in config. Ignoring.\n", event.Destination)
 		return nil
 	}
@@ -63,7 +65,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	chan_id := event.Destination                               // Channel ID
 	userId := event.Source.UserId                              // User ID
 	userQuery := event.Message.Text                            // User query
-	trigger_word := c.channelMap[chan_id].ChannelTriggerPrefix // Trigger word
+	trigger_word := c.ChannelMap[chan_id].ChannelTriggerPrefix // Trigger word
 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
 
@@ -120,7 +122,7 @@ func (c *LlmConnector) LlmRequestSender(prompt LlmUserQuery) (LlmModelResponse, 
 	// Create a new HTTP request.
 	req, err := http.NewRequest(
 		"POST",
-		c.channelMap[prompt.ChannelId].ChannelLlmEndpoint,
+		c.ChannelMap[prompt.ChannelId].ChannelLlmEndpoint,
 		bytes.NewBuffer(request_payload))
 
 	if err != nil {
