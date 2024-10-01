@@ -42,7 +42,7 @@ func loadConfig(configPath string) ServerConfig {
 func main() {
 	// Define command-line flags
 	configPath := flag.String("config", "config.yaml", "Path to the config file")
-	llmDebug := flag.Bool("llm-debug", false, "Enable debug mode for LLM")
+	llmDebug := flag.Bool("llm-local-debug", false, "Enable local debug mode for LLM, preventing requests to the LLM endpoint")
 
 	// Parse command-line flags
 	flag.Parse()

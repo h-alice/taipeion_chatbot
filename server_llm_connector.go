@@ -74,7 +74,15 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 		log.Printf("[LlmCallback] User query does not start with trigger word (%s). Ignoring.\n", trigger_word)
 		return nil
 	}
+	// Check debug mode.
+	if c.LocalDebugMode {
+		log.Println("[LlmCallback] Local debug mode is enabled.")
+		log.Printf("[LlmCallback] [Debug info] User ID: %s, Channel ID: %d, User Query: %s Trigger Word: %s\n", userId, chan_id, userQuery, trigger_word)
+		log.Println("[LlmCallback] The following procedure is sending the user query to the LLM server in normal mode.")
+		log.Println("[LlmCallback] LLM Callback will now exit.")
 
+		return nil
+	}
 	// Send a friendly message.
 	err := bot.SendPrivateMessage(userId, fmt.Sprintf("正在處理您的問題，視當前情況大約需要30秒~數分鐘不等\n感謝您的耐心等待!\n(目前排隊: %d)", c.waitingCounter), chan_id)
 
