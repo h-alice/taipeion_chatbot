@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -8,50 +9,51 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func loadConfig() ServerConfig {
-	var configPath string
-	var configFile []byte
-	var err error
+// loadConfig loads the server configuration from a file.
+func loadConfig(configPath string) ServerConfig {
+	// Try to read the specified config file
+	configFile, err := os.ReadFile(configPath)
+	if err != nil {
+		fmt.Printf("[Init] Could not read specified config file: %s\n", configPath)
+		fmt.Println("[Init] Trying default config file: config.yaml")
 
-	// Check if a config file is provided as a command-line argument
-	if len(os.Args) > 1 {
-		configPath = os.Args[1]
-		configFile, err = os.ReadFile(configPath)
-		if err == nil {
-			fmt.Printf("Using config file: %s\n", configPath)
+		// Try to read the default config file
+		configFile, err = os.ReadFile("config.yaml")
+		if err != nil {
+			fmt.Println("[Init] Error: No config file found.")
+			fmt.Println("Usage: ./program --config [path_to_config_file]")
+			fmt.Println("If no config file is specified, the program will try to use 'config.yaml' in the current directory.")
+			os.Exit(1)
 		}
 	}
 
-	// If no config file was provided or couldn't be read, try the default "config.yaml"
-	if configFile == nil {
-		configPath = "config.yaml"
-		configFile, err = os.ReadFile(configPath)
-		if err == nil {
-			fmt.Printf("Using default config file: %s\n", configPath)
-		}
-	}
-
-	// If still no config file, suggest proper usage and exit
-	if configFile == nil {
-		fmt.Println("Error: No config file found.")
-		fmt.Println("Usage: ./program [path_to_config_file]")
-		fmt.Println("If no config file is specified, the program will try to use 'config.yaml' in the current directory.")
-		os.Exit(1)
-	}
+	fmt.Printf("[Init] Using config file: %s\n", configPath)
 
 	// Parse the configuration
 	var config ServerConfig
 	err = yaml.Unmarshal(configFile, &config)
 	if err != nil {
-		log.Fatal("Error parsing config file:", err)
+		log.Fatalf("[Init] Error parsing config file: %v", err)
 	}
 
 	return config
 }
 
 func main() {
+	// Define command-line flags
+	configPath := flag.String("config", "config.yaml", "Path to the config file")
+	llmDebug := flag.Bool("llm-debug", false, "Enable debug mode for LLM")
+
+	// Parse command-line flags
+	flag.Parse()
+
+	// Print debug information if --llm-debug flag is set
+	if *llmDebug {
+		fmt.Println("[Init] LLM Local Debug mode is enabled. Requests won't be sent to the LLM endpoint.")
+	}
+
 	// Load the configuration
-	config := loadConfig()
+	config := loadConfig(*configPath)
 
 	// Create a new chatbot instance
 	bot := NewChatbotFromConfig(config)
@@ -67,5 +69,7 @@ func main() {
 		ScheduleCallbackHighestPriority(SimpleWebhookEventCallback),
 	)
 	// Start the chatbot
-	_ = bot.Start()
+	if err := bot.Start(); err != nil {
+		log.Fatalf("Error starting bot: %v", err)
+	}
 }
