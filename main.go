@@ -58,7 +58,7 @@ func main() {
 	// Create a new chatbot instance
 	bot := NewChatbotFromConfig(config)
 
-	llm := NewLlmConnector(config.Channels)
+	llm := NewLlmConnector(config.Channels, *llmDebug)
 
 	// Register callbacks.
 	bot.RegisterWebhookEventCallback(
