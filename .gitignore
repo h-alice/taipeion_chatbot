@@ -8,3 +8,5 @@ config.yaml
 taipeion_server
 
 .DS_Store
+
+docker-compose-sample.yaml
