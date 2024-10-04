@@ -68,7 +68,7 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	log.Printf("[LlmCallback] Received user (%s) query on channel (%d): %s\n", userId, chan_id, userQuery)
 
 	// Check if the user query starts with the trigger word.
-	if !strings.HasPrefix(userQuery, trigger_word) {
+	if !strings.HasPrefix(strings.TrimSpace(userQuery), trigger_word) {
 		log.Printf("[LlmCallback] User query does not start with trigger word (%s). Ignoring.\n", trigger_word)
 		return nil
 	}
