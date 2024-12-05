@@ -90,7 +90,9 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 		return err
 	}
 
-	atomic.AddInt32(&c.waitingCounter, 1) // Add waiting counter by 1.
+	// Counter control.
+	atomic.AddInt32(&c.waitingCounter, 1)        // Add waiting counter by 1.
+	defer atomic.AddInt32(&c.waitingCounter, -1) // Decrease waiting counter by 1 while exiting.
 
 	// Create a new user query.
 	userQueryPayload := LlmUserQuery{
@@ -116,8 +118,6 @@ func (c *LlmConnector) LlmCallback(bot *TaipeionBot, event ChatbotWebhookEvent) 
 	}
 
 	log.Printf("[LlmCallback] Model response for user (%s) on channel (%d): %s\n", userId, chan_id, concatedResponse)
-
-	atomic.AddInt32(&c.waitingCounter, -1) // Decrease waiting counter by 1.
 
 	return bot.SendPrivateMessage(userId, concatedResponse, chan_id) // Send final result.
 }
