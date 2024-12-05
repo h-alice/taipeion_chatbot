@@ -15,46 +15,6 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-type WebhookEventCallback func(*TaipeionBot, ChatbotWebhookEvent) error
-
-// Define a struct for the response
-type response struct {
-	Status string `json:"status"`
-}
-
-// Definiton of the channel struct.
-type Channel struct {
-	ChannelSecret      string `yaml:"channel-secret"`
-	ChannelAccessToken string `yaml:"channel-access-token"`
-}
-type ServerConfig struct {
-	Endpoint               string          `yaml:"taipeion-endpoint"`
-	Channels               map[int]Channel `yaml:"channels"`
-	Address                string          `yaml:"address"`
-	Port                   int16           `yaml:"port"`
-	ApiPlatformEndpoint    string          `yaml:"api-platform-endpoint"`
-	ApiPlatformClientId    string          `yaml:"api-platform-client-id"`
-	ApiPlatformClientToken string          `yaml:"api-platform-client-token"`
-	LlmEndpoint            string          `yaml:"llm-endpoint"`
-}
-
-type ChatbotWebhookEvent struct {
-	Destination int
-	tp.MessageEvent
-}
-
-type TaipeionBot struct {
-	Endpoint       string
-	Channels       map[int]Channel
-	ServerAddress  string
-	ServerPort     int16
-	eventQueue     chan ChatbotWebhookEvent
-	eventHandlers  []WebhookEventCallback
-	eventSemaphore *semaphore.Weighted
-	maxConcurrent  int
-	api_client     *api_platform.ApiPlatformClient
-}
-
 // # Enqueue an incoming webhook event.
 func (tpb *TaipeionBot) enqueueWebhookIncomingEvent(event ChatbotWebhookEvent) {
 	tpb.eventQueue <- event
@@ -152,7 +112,7 @@ func (tpb *TaipeionBot) incomeRequestHandlerFactory() func(w http.ResponseWriter
 		if r.Header.Get("Content-Length") == "" || r.Header.Get("Content-Length") == "0" {
 			// Ignore and send OK.
 			response := response{Status: "no content"}
-			w.WriteHeader(http.StatusAccepted)
+			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
 			return
@@ -216,9 +176,9 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 
 		case event := <-tpb.eventQueue: // Wait for incoming events.
 			log.Printf("[EvProcessor] Processing event: %#v\n", event)
-			for _, handler := range tpb.eventHandlers { // Iterate over the event handlers.
-				log.Printf("[EvProcessor] Processing event with handler: %#v\n", handler)
-				go tpb.eventProcessorInternalCallbackWrapper(ctx, handler, event) // Call the handler in a goroutine.
+			for _, event_handler := range tpb.eventHandlers { // Iterate over the event handlers.
+				log.Printf("[EvProcessor] Processing event with handler: %#v\n", event_handler.Callback)
+				go tpb.eventProcessorInternalCallbackWrapper(ctx, event_handler, event) // Call the handler in a goroutine.
 			}
 		}
 	}
@@ -230,19 +190,25 @@ func (tpb *TaipeionBot) EventProcessorLoop(ctx context.Context) error {
 // So there's no need to deal with the semaphore or context in the callback function.
 //
 // The function is for internal use only.
-func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler WebhookEventCallback, event ChatbotWebhookEvent) error {
-	tpb.eventSemaphore.Acquire(ctx, 1) // Acquire the semaphore, wait until available.
-	err := event_handler(tpb, event)   // Call the event handler.
-	tpb.eventSemaphore.Release(1)      // Release the semaphore if callback is done.
-	return err
+func (tpb *TaipeionBot) eventProcessorInternalCallbackWrapper(ctx context.Context, event_handler_entry eventHandlerEntry, event ChatbotWebhookEvent) error {
+	ctx = context.WithoutCancel(ctx)
+	if event_handler_entry.IsPriority {
+		return event_handler_entry.Callback(tpb, event) // Directly call the event handler.
+	} else {
+		tpb.eventSemaphore.Acquire(ctx, 1)              // Acquire the semaphore, wait until available.
+		err := event_handler_entry.Callback(tpb, event) // Call the event handler.
+
+		tpb.eventSemaphore.Release(1) // Release the semaphore if callback is done.
+		return err
+	}
 }
 
 // # Webhook Event Registration
 //
 // Register a webhook event callback.
 // All registered callbacks will be called when an event is received.
-func (tpb *TaipeionBot) RegisterWebhookEventCallback(callback WebhookEventCallback) {
-	tpb.eventHandlers = append(tpb.eventHandlers, callback)
+func (tpb *TaipeionBot) RegisterWebhookEventCallback(ev_handler_entry eventHandlerEntry) {
+	tpb.eventHandlers = append(tpb.eventHandlers, ev_handler_entry)
 }
 
 // # Main loop
@@ -318,9 +284,6 @@ func (tpb *TaipeionBot) Start() error {
 	tpb.eventQueue = make(chan ChatbotWebhookEvent, 100)
 
 	for {
-		// Setup concurrency semaphore.
-		tpb.eventSemaphore = semaphore.NewWeighted(1) // TODO: Adjust the semaphore weight.
-
 		// Create a new context.
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -338,13 +301,22 @@ func (tpb *TaipeionBot) Start() error {
 // # New Chatbot Instance
 //
 // Create a new chatbot instance.
-func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress string, serverPort int16, apiPlatformEndpoint string, apiPlatformClientId string, apiPlatformClientToken string) *TaipeionBot {
+func NewChatbotInstance(
+	endpoint string,
+	channels map[int]Channel,
+	serverAddress string,
+	serverPort int16,
+	apiPlatformEndpoint string,
+	apiPlatformClientId string,
+	apiPlatformClientToken string,
+	maxConcurrentEvent int) *TaipeionBot {
+
 	return &TaipeionBot{
 		Endpoint:      endpoint,
 		Channels:      channels,
 		ServerAddress: serverAddress,
 		ServerPort:    serverPort,
-		maxConcurrent: 1, // TODO: Adjust the semaphore weight.
+		maxConcurrent: maxConcurrentEvent,
 		api_client:    api_platform.NewApiPlatformClient(apiPlatformEndpoint, apiPlatformClientId, apiPlatformClientToken),
 	}
 }
@@ -353,5 +325,13 @@ func NewChatbotInstance(endpoint string, channels map[int]Channel, serverAddress
 //
 // Create a new chatbot instance from a configuration.
 func NewChatbotFromConfig(config ServerConfig) *TaipeionBot {
-	return NewChatbotInstance(config.Endpoint, config.Channels, config.Address, config.Port, config.ApiPlatformEndpoint, config.ApiPlatformClientId, config.ApiPlatformClientToken)
+	return NewChatbotInstance(
+		config.Endpoint,
+		config.Channels,
+		config.Address,
+		config.Port,
+		config.ApiPlatformEndpoint,
+		config.ApiPlatformClientId,
+		config.ApiPlatformClientToken,
+		config.MaxConcurrentEvent)
 }
