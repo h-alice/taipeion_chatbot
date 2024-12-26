@@ -22,4 +22,13 @@ func SimpleWebhookEventCallback(bot *TaipeionBot, event ChatbotWebhookEvent) err
 }
 ```
 
+## Function Diagrams
+
+<img width="1273" alt="image" src="https://github.com/user-attachments/assets/93a81e98-ee88-4579-a366-0ecfd9cec97a" />
+
+### Concurrent Handling Process
+<img width="602" alt="image" src="https://github.com/user-attachments/assets/7924b180-d442-46cd-bb7d-dff771a05766" />
+
+### LLM Service Handler
+<img width="719" alt="image" src="https://github.com/user-attachments/assets/535d37b0-7b95-43b6-8b71-96140f49cc3c" />
 
